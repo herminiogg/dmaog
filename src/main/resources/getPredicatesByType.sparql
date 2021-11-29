@@ -1,0 +1,4 @@
+SELECT DISTINCT ?predicate WHERE {
+  ?subject a <$type> ;
+           ?predicate ?object .
+}

@@ -1,0 +1,4 @@
+SELECT ?object WHERE {
+  ?subject a <$type> ;
+           <$predicate> ?object .
+}
