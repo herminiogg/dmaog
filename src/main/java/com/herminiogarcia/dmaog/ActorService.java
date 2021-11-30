@@ -7,8 +7,8 @@ public class ActorService {
 
     private DataAccess dataAccess;
 
-    public ActorService(String dataFile) {
-        this.dataAccess = new DataAccess(dataFile);
+    public ActorService(String dataFile, String mappingRules, Long reloadMinutes) {
+        this.dataAccess = new DataAccess(dataFile, mappingRules, reloadMinutes);
     }
 
     public List<Actor> getAll() {

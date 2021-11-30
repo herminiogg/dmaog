@@ -7,14 +7,14 @@ public class Film {
     public final static String rdfType = "http://example.com/Film";
 
     private Integer year;
-	private IRIValue schemaActor;
-	private String schemaName;
-	private IRIValue screenwritter;
-	private IRIValue schemaCountryOfOrigin;
-	private IRIValue schemaDirector;
-	private IRIValue schemaMusicBy;
-	private IRIValue cinematographer;
-	private IRIValue id;
+    private IRIValue schemaActor;
+    private String schemaName;
+    private IRIValue screenwritter;
+    private IRIValue schemaCountryOfOrigin;
+    private IRIValue schemaDirector;
+    private IRIValue schemaMusicBy;
+    private IRIValue cinematographer;
+    private IRIValue id;
 
     public Film() {
 
@@ -24,35 +24,35 @@ public class Film {
         return this.year;
     }
 
-	public IRIValue getSchemaActor() {
+    public IRIValue getSchemaActor() {
         return this.schemaActor;
     }
 
-	public String getSchemaName() {
+    public String getSchemaName() {
         return this.schemaName;
     }
 
-	public IRIValue getScreenwritter() {
+    public IRIValue getScreenwritter() {
         return this.screenwritter;
     }
 
-	public IRIValue getSchemaCountryOfOrigin() {
+    public IRIValue getSchemaCountryOfOrigin() {
         return this.schemaCountryOfOrigin;
     }
 
-	public IRIValue getSchemaDirector() {
+    public IRIValue getSchemaDirector() {
         return this.schemaDirector;
     }
 
-	public IRIValue getSchemaMusicBy() {
+    public IRIValue getSchemaMusicBy() {
         return this.schemaMusicBy;
     }
 
-	public IRIValue getCinematographer() {
+    public IRIValue getCinematographer() {
         return this.cinematographer;
     }
 
-	public IRIValue getId() {
+    public IRIValue getId() {
         return this.id;
     }
 
@@ -62,58 +62,45 @@ public class Film {
         return this;
     }
 
-	public Film setSchemaActor(IRIValue schemaActor) {
+    public Film setSchemaActor(IRIValue schemaActor) {
         this.schemaActor = schemaActor;
         return this;
     }
 
-	public Film setSchemaName(String schemaName) {
+    public Film setSchemaName(String schemaName) {
         this.schemaName = schemaName;
         return this;
     }
 
-	public Film setScreenwritter(IRIValue screenwritter) {
+    public Film setScreenwritter(IRIValue screenwritter) {
         this.screenwritter = screenwritter;
         return this;
     }
 
-	public Film setSchemaCountryOfOrigin(IRIValue schemaCountryOfOrigin) {
+    public Film setSchemaCountryOfOrigin(IRIValue schemaCountryOfOrigin) {
         this.schemaCountryOfOrigin = schemaCountryOfOrigin;
         return this;
     }
 
-	public Film setSchemaDirector(IRIValue schemaDirector) {
+    public Film setSchemaDirector(IRIValue schemaDirector) {
         this.schemaDirector = schemaDirector;
         return this;
     }
 
-	public Film setSchemaMusicBy(IRIValue schemaMusicBy) {
+    public Film setSchemaMusicBy(IRIValue schemaMusicBy) {
         this.schemaMusicBy = schemaMusicBy;
         return this;
     }
 
-	public Film setCinematographer(IRIValue cinematographer) {
+    public Film setCinematographer(IRIValue cinematographer) {
         this.cinematographer = cinematographer;
         return this;
     }
 
-	public Film setId(IRIValue id) {
+    public Film setId(IRIValue id) {
         this.id = id;
         return this;
     }
 
-    @Override
-    public String toString() {
-        return "Film{" +
-                "year=" + year +
-                ", schemaActor=" + schemaActor +
-                ", schemaName='" + schemaName + '\'' +
-                ", screenwritter=" + screenwritter +
-                ", schemaCountryOfOrigin=" + schemaCountryOfOrigin +
-                ", schemaDirector=" + schemaDirector +
-                ", schemaMusicBy=" + schemaMusicBy +
-                ", cinematographer=" + cinematographer +
-                ", id=" + id +
-                '}';
-    }
+
 }

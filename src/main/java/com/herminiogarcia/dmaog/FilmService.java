@@ -7,8 +7,8 @@ public class FilmService {
 
     private DataAccess dataAccess;
 
-    public FilmService(String dataFile) {
-        this.dataAccess = new DataAccess(dataFile);
+    public FilmService(String dataFile, String mappingRules, Long reloadMinutes) {
+        this.dataAccess = new DataAccess(dataFile, mappingRules, reloadMinutes);
     }
 
     public List<Film> getAll() {

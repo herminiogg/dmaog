@@ -16,7 +16,7 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
 
   def generate(): Unit = {
     val pathToRDF = generateData()
-    val model = loadModel(pathToRDF)
+    val model = loadModel(pathToRDF, None, None)
     val types = getTypes(model)
     val attributesPerType = getAttributesPerType(types, model)
     generateClasses(attributesPerType)
@@ -76,7 +76,7 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
 
   private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]]): Unit = {
     val rdfsType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-    val model = loadModel(pathToGenerate + "/data.ttl")
+    val model = loadModel(pathToGenerate + "/data.ttl", None, None)
     val prefixes = model.getNsPrefixMap.asScala.toMap
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {
@@ -84,9 +84,9 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
       // DTO class
       val classTemplate = loadFromResources("javaClassGeneric.java")
       val attributes = attributesByType(t).filter(!_.predicate.equals(rdfsType)).:+(new DataTypedPredicate("id", "IRIValue"))
-      val attributesDeclaration = attributes.map(a => generateAttributesCode("attribute.java", a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n\t")
-      val getters = attributes.map(a => generateGetterSetterCode("getter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n\t")
-      val setters = attributes.map(a => generateGetterSetterCode("setter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n\t")
+      val attributesDeclaration = attributes.map(a => generateAttributesCode("attribute.java", a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+      val getters = attributes.map(a => generateGetterSetterCode("getter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+      val setters = attributes.map(a => generateGetterSetterCode("setter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
       val classCode = classTemplate.replaceAll("\\$package", packageName)
         .replaceAll("\\$className", capitalizedClassName)
         .replaceAll("\\$rdfType", t)

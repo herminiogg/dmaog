@@ -7,8 +7,8 @@ public class $className {
 
     private DataAccess dataAccess;
 
-    public $className(String dataFile) {
-        this.dataAccess = new DataAccess(dataFile);
+    public $className(String dataFile, String mappingRules, Long reloadMinutes) {
+        this.dataAccess = new DataAccess(dataFile, mappingRules, reloadMinutes);
     }
 
     public List<$type> getAll() {

@@ -15,3 +15,5 @@ libraryDependencies += "com.github.herminiogg" % "ShExML" % "v0.2.7"
 libraryDependencies += "org.apache.jena" % "apache-jena-libs" % "3.17.0" pomOnly()
 
 libraryDependencies += "org.apache.jena" % "jena-arq" % "3.17.0"
+
+libraryDependencies += "info.picocli" % "picocli" % "4.0.4"

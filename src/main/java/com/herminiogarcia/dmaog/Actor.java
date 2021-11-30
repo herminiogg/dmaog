@@ -7,8 +7,8 @@ public class Actor {
     public final static String rdfType = "http://example.com/Actor";
 
     private String name;
-	private IRIValue appear_on;
-	private IRIValue id;
+    private IRIValue appear_on;
+    private IRIValue id;
 
     public Actor() {
 
@@ -18,11 +18,11 @@ public class Actor {
         return this.name;
     }
 
-	public IRIValue getAppear_on() {
+    public IRIValue getAppear_on() {
         return this.appear_on;
     }
 
-	public IRIValue getId() {
+    public IRIValue getId() {
         return this.id;
     }
 
@@ -32,22 +32,15 @@ public class Actor {
         return this;
     }
 
-	public Actor setAppear_on(IRIValue appear_on) {
+    public Actor setAppear_on(IRIValue appear_on) {
         this.appear_on = appear_on;
         return this;
     }
 
-	public Actor setId(IRIValue id) {
+    public Actor setId(IRIValue id) {
         this.id = id;
         return this;
     }
 
-    @Override
-    public String toString() {
-        return "Actor{" +
-                "name='" + name + '\'' +
-                ", appear_on=" + appear_on +
-                ", id=" + id +
-                '}';
-    }
+
 }
