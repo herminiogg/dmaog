@@ -4,7 +4,7 @@ import com.herminiogarcia.dmaog.common.{DataTypedPredicate, ModelLoader, Prefixe
 import es.weso.shexml.MappingLauncher
 import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.datatypes.xsd.XSDDatatype
-import org.apache.jena.query.{QueryExecutionFactory, QueryFactory}
+import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, ResultSet}
 import org.apache.jena.rdf.model.{Model, Resource}
 
 import java.io.{File, PrintWriter}
@@ -31,9 +31,7 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
   }
 
   private def getTypes(model: Model): List[String] = {
-    val query = QueryFactory.create(loadFromResources("getTypes.sparql"))
-    val queryExecution = QueryExecutionFactory.create(query, model)
-    val resultSet = queryExecution.execSelect()
+    val resultSet = doSparqlQuery(model, loadFromResources("getTypes.sparql"))
     val types = mutable.ListBuffer[String]()
     while(resultSet.hasNext) {
       val results = resultSet.next()
@@ -45,27 +43,43 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
   private def getAttributesPerType(types: List[String], model: Model): Map[String, List[DataTypedPredicate]] = {
     types.map(t => {
       val sparql = loadFromResources("getPredicatesByType.sparql").replaceFirst("\\$type", t)
-      val query = QueryFactory.create(sparql)
-      val queryExecution = QueryExecutionFactory.create(query, model)
-      val resultSet = queryExecution.execSelect()
+      val resultSet = doSparqlQuery(model, sparql)
       val attributes = mutable.ListBuffer[DataTypedPredicate]()
       while(resultSet.hasNext) {
+        // Predicate
         val result = resultSet.next()
         val predicate = result.get("predicate").asResource().getURI
+
+        // Datatype
         val dataTypeSparql = loadFromResources("getDataTypeForPredicate.sparql")
           .replaceFirst("\\$type", t)
           .replaceFirst("\\$predicate", predicate)
-        val dataTypeQuery = QueryFactory.create(dataTypeSparql)
-        val dataTypeQueryExecution = QueryExecutionFactory.create(dataTypeQuery, model)
-        val dataTypeResultSet = dataTypeQueryExecution.execSelect()
+        val dataTypeResultSet = doSparqlQuery(model, dataTypeSparql)
         val theObject = dataTypeResultSet.next().get("object")
+
+        // Cardinality
+        val cardinalitySparql = loadFromResources("getCardinalityForPredicate.sparql")
+          .replaceFirst("\\$type", t)
+          .replaceFirst("\\$predicate", predicate)
+        val cardinalityResultSet = doSparqlQuery(model, cardinalitySparql)
+        val objectCardinality = cardinalityResultSet.next().get("cardinality").asLiteral().getInt
+
+        // Datatype with cardinality conversion
         val dataType = if(theObject.isLiteral)
           convertToJavaDataType(theObject.asLiteral().getDatatype) // TODO: loop the results to find the best type
           else "IRIValue"
-        attributes.append(new DataTypedPredicate(predicate, dataType))
+        val dataTypeWithCardinality = if(objectCardinality > 1) "List<" + dataType + ">" else dataType
+        attributes.append(new DataTypedPredicate(predicate, dataTypeWithCardinality))
       }
       t -> attributes.toList
     }).toMap
+  }
+
+  private def doSparqlQuery(model: Model, sparql: String): ResultSet = {
+    val query = QueryFactory.create(sparql)
+    val queryExecution = QueryExecutionFactory.create(query, model)
+    val resultSet = queryExecution.execSelect()
+    resultSet
   }
 
   private def resourceToCapitalizedName(resource: Resource): String = {

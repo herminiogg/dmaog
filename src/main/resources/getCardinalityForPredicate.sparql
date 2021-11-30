@@ -1,0 +1,4 @@
+SELECT (count(?object) AS ?cardinality) WHERE {
+  ?subject a <$type> ;
+           <$predicate> ?object .
+} GROUP BY ?subject ORDER BY desc(count(?object))

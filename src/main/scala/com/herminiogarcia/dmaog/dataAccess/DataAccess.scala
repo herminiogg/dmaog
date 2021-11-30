@@ -4,6 +4,7 @@ import com.herminiogarcia.dmaog.common.{IRIValue, ModelLoader, PrefixedNameConve
 import org.apache.jena.query.{QueryExecutionFactory, QueryFactory}
 import org.apache.jena.rdf.model.Model
 
+import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -51,20 +52,26 @@ class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, r
       val methods = instance.getClass.getMethods
       methods.filter(_.getName == "setId").head.invoke(instance, createIRIValue(key, model))
       for(attribute <- results) {
-        val methodName = "set" + prefixedNameConverterFunc(attribute._1).capitalize
+        val attributeName = prefixedNameConverterFunc(attribute._1).capitalize
+        val setterName = "set" + attributeName
+        val getterName = "get" + attributeName
         val value = prefixedValueConverterFunc(attribute._2)
-        methods.find(_.getName == methodName).foreach(m => {
-          val setterParameterType = m.getParameterTypes.head
+        methods.find(_.getName == setterName).foreach(m => {
+          val getterMethod = methods.find(_.getName == getterName).headOption
+          val isList = m.getParameterTypes.head == classOf[util.List[Object]]
+          val setterParameterType =
+            if(!isList) m.getParameterTypes.head
+            else m.getGenericParameterTypes.head.asInstanceOf[ParameterizedType].getActualTypeArguments.headOption.map(_.asInstanceOf[Class[_]]).get
           if(setterParameterType == classOf[IRIValue]) {
-            m.invoke(instance, createIRIValue(attribute._2, model))
+            invokeSetterOrAddToList(m, getterMethod, instance, createIRIValue(attribute._2, model), isList)
           } else {
             if(setterParameterType.getMethods.exists(_.getName == "valueOf") && setterParameterType != classOf[String]) {
               val numericConversion = setterParameterType.getMethod("valueOf", classOf[String])
               val parsedValue = numericConversion.invoke(setterParameterType, value)
-              m.invoke(instance, parsedValue)
+              invokeSetterOrAddToList(m, getterMethod, instance, parsedValue, isList)
             } else {
               val castedValue = setterParameterType.cast(value)
-              m.invoke(instance, castedValue.asInstanceOf[Object])
+              invokeSetterOrAddToList(m, getterMethod, instance, castedValue.asInstanceOf[Object], isList)
             }
           }
         })
@@ -72,6 +79,24 @@ class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, r
       instance
     }
     results.toList
+  }
+
+  private def invokeSetterOrAddToList[T, S](setter: Method, getter: Option[Method], instance: T, value: S, list: Boolean): Unit = {
+    if(list) {
+      getter match {
+        case Some(getterMethod) =>
+          val possibleList = getterMethod.invoke(instance)
+          val valueList = if(possibleList == null) {
+            val newList = new util.ArrayList[S]()
+            setter.invoke(instance, newList)
+            newList
+          } else possibleList
+          valueList.asInstanceOf[util.List[S]].add(value)
+        case None => throw new Exception("Getter equivalent for setter" + setter.getName + " not found")
+      }
+    } else {
+      setter.invoke(instance, value.asInstanceOf[Object])
+    }
   }
 
   private def getRDFType(theClass: Class[_]): Option[String] = {
