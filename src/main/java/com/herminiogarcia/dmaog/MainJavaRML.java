@@ -1,37 +1,28 @@
-package com.herminiogarcia.dmaog;
-/**
+package com.herminiogarcia.com.herminiogarcia.dmaog;
+
 import com.herminiogarcia.com.herminiogarcia.dmaog.Actor;
 import com.herminiogarcia.com.herminiogarcia.dmaog.ActorService;
 import com.herminiogarcia.com.herminiogarcia.dmaog.Film;
 import com.herminiogarcia.com.herminiogarcia.dmaog.FilmService;
-import org.apache.jena.util.FileUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
-public class MainJava {
+public class MainJavaRML {
 
     public static void main(String[] args) {
-        /**val shexml = scala.io.Source.fromFile("films.shexml").mkString
-         new CodeGenerator(shexml, ".", "com.herminiogarcia.dmaog").generate()
-         val resultFilms = new FilmService(".").getAll
-         val resultActors = new ActorService(".").getAll
-         println(resultFilms)
-         println(resultActors)*/
-        /**String rules = null;
+        String rules = null;
         try {
-            rules = String.join("", Files.readAllLines(Paths.get("films.shexml")));
+            rules = String.join("", Files.readAllLines(Paths.get("films.rml.ttl")));
         } catch (IOException e) {
             e.printStackTrace();
         }
-        List<Film> films = new FilmService(".", rules, "shexml", 2L).getAll();
+        List<Film> films = new FilmService(".", rules, "rml", 2L).getAll();
         List<Actor> actors = new ActorService(".", null, null, null).getAll();
         System.out.println(films);
         System.out.println(actors);
     }
 
 }
-*/

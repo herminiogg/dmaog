@@ -1,7 +1,7 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
+import com.herminiogarcia.com.herminiogarcia.dmaog.common.MappingRulesRunner
 import com.herminiogarcia.dmaog.common.{DataTypedPredicate, ModelLoader, PrefixedNameConverter, ResourceLoader}
-import es.weso.shexml.MappingLauncher
 import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, ResultSet}
@@ -11,12 +11,12 @@ import java.io.{File, PrintWriter}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String) extends ResourceLoader
-        with ModelLoader with PrefixedNameConverter {
+class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerate: String, packageName: String) extends ResourceLoader
+        with ModelLoader with PrefixedNameConverter with MappingRulesRunner {
 
   def generate(): Unit = {
     val pathToRDF = generateData()
-    val model = loadModel(pathToRDF, None, None)
+    val model = loadModel(pathToRDF, None, null, None)
     val types = getTypes(model)
     val attributesPerType = getAttributesPerType(types, model)
     generateClasses(attributesPerType)
@@ -24,7 +24,7 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
 
 
   private def generateData(): String = {
-    val rdfResult = new MappingLauncher().launchMapping(shexml, "Turtle")
+    val rdfResult = generateDataByMappingLanguage(mappingRules, mappingLanguage)
     val finalPath = pathToGenerate + "/" + "data.ttl"
     writeFile(finalPath, rdfResult)
     finalPath
@@ -90,7 +90,7 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
 
   private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]]): Unit = {
     val rdfsType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-    val model = loadModel(pathToGenerate + "/data.ttl", None, None)
+    val model = loadModel(pathToGenerate + "/data.ttl", None, None, None)
     val prefixes = model.getNsPrefixMap.asScala.toMap
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {
@@ -152,7 +152,4 @@ class CodeGenerator(shexml: String, pathToGenerate: String, packageName: String)
     case XSDDatatype.XSDboolean => "Boolean"
     case _ => throw new Exception("Impossible to convert the type " + datatype.getURI + " to a Java type")
   }
-
-
-
 }

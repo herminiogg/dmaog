@@ -9,13 +9,13 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, reloadMinutes: java.lang.Long = null) extends ResourceLoader with ModelLoader with PrefixedNameConverter {
+class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, mappingLanguage: String = "shexml", reloadMinutes: java.lang.Long = null) extends ResourceLoader with ModelLoader with PrefixedNameConverter {
 
   def getAll[T](theClass: Class[T]): util.List[T] = {
     val rdfType = getRDFType(theClass)
     rdfType match {
       case Some(theType) =>
-        val model = loadModel(pathForGeneratedContent + "/data.ttl", Option(mappingRules), Option(reloadMinutes))
+        val model = loadModel(pathForGeneratedContent + "/data.ttl", Option(mappingRules), Option(mappingLanguage), Option(reloadMinutes))
         val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", theType)
         val query = QueryFactory.create(sparql)
         val queryExecution = QueryExecutionFactory.create(query, model)

@@ -24,6 +24,9 @@ class Main extends Callable[Int] {
   @Option(names = Array("-m", "--mapping"), required = true, description = Array("Path to the file with the mappings"))
   private var mappingRules: String = ""
 
+  @Option(names = Array("-ml", "--mappingLanguage"), description = Array("Mapping language to use: ShExML or RML"))
+  private var mappingLanguage: String = "ShExML"
+
   @Option(names = Array("-o", "--output"), required = true, description = Array("Path where to generate the output files"))
   private var outputPath: String = ""
 
@@ -34,7 +37,7 @@ class Main extends Callable[Int] {
     val fileHandler = scala.io.Source.fromFile(mappingRules)
     try {
       val fileContent = fileHandler.mkString
-      new CodeGenerator(fileContent, outputPath, packageName).generate()
+      new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName).generate()
       1 // well finished
     } finally { fileHandler.close() }
   }

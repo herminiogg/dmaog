@@ -1,118 +1,117 @@
-@prefix :      <http://example.com/> .
+@prefix rr:    <http://www.w3.org/ns/r2rml#> .
+@prefix rml:   <http://semweb.mmlab.be/ns/rml#> .
 @prefix schema: <http://schema.org/> .
+@prefix :      <http://example.com/> .
+@prefix d2rq:  <http://www.wiwiss.fu-berlin.de/suhl/bizer/D2RQ/0.1#> .
 @prefix dbr:   <http://dbpedia.org/resource/> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
-
-dbr:Leonardo_DiCaprio
-        a           :Actor ;
-        :appear_on  :3 ;
-        :name       "Leonardo DiCaprio" .
+@prefix ql:    <http://semweb.mmlab.be/ns/ql#> .
+@prefix map:   <http://mapping.example.com/> .
 
 :3      a                       :Film ;
-        :screenwritter          dbr:Christopher_Nolan ;
+        :screenwritter          <http://dbpedia.org/resource/Christopher%20Nolan> ;
         :year                   2010 ;
-        schema:actor            dbr:Joseph_Gordon-Levitt , dbr:Ellen_Page , dbr:Leonardo_DiCaprio , dbr:Tom_Hardy ;
+        schema:actor            <http://dbpedia.org/resource/Michael%20Caine> , <http://dbpedia.org/resource/Christian%20Bale> , <http://dbpedia.org/resource/Leonardo%20DiCaprio> , <http://dbpedia.org/resource/Hugh%20Jackman> , <http://dbpedia.org/resource/Joseph%20Gordon-Levitt> , <http://dbpedia.org/resource/Tom%20Hardy> , <http://dbpedia.org/resource/Ellen%20Page> , <http://dbpedia.org/resource/Piper%20Perabo> ;
         schema:countryOfOrigin  dbr:USA ;
-        schema:director         dbr:Christopher_Nolan ;
-        schema:musicBy          dbr:Hans_Zimmer ;
+        schema:director         <http://dbpedia.org/resource/Christopher%20Nolan> ;
+        schema:musicBy          <http://dbpedia.org/resource/Hans%20Zimmer> ;
         schema:name             "Inception" .
 
-dbr:Christian_Bale  a  :Actor ;
-        :appear_on  :4 ;
-        :name       "Christian Bale" .
+<http://dbpedia.org/resource/Leonardo%20DiCaprio>
+        a       :Actor ;
+        :name   "Leonardo DiCaprio" .
 
-dbr:Ellen_Page  a   :Actor ;
-        :appear_on  :3 ;
-        :name       "Ellen Page" .
+<http://dbpedia.org/resource/Lee%20Armstrong>
+        a       :Actor ;
+        :name   "Lee Armstrong" .
 
-dbr:Mackenzie_Foy  a  :Actor ;
-        :appear_on  :2 ;
-        :name       "Mackenzie Foy" .
+<http://dbpedia.org/resource/Mackenzie%20Foy>
+        a       :Actor ;
+        :name   "Mackenzie Foy" .
+
+<http://dbpedia.org/resource/Fionn%20Whitehead>
+        a       :Actor ;
+        :name   "Fionn Whitehead" .
+
+<http://dbpedia.org/resource/Damien%20Bonnard>
+        a       :Actor ;
+        :name   "Damien Bonnard" .
 
 :2      a                       :Film ;
-        :cinematographer        dbr:Hoyte_van_Hoytema ;
-        :screenwritter          dbr:Christopher_Nolan , dbr:Jonathan_Nolan ;
+        :screenwritter          <http://dbpedia.org/resource/Christopher%20Nolan> , <http://dbpedia.org/resource/Jonathan%20Nolan> ;
         :year                   2014 ;
-        schema:actor            dbr:Matthew_McConaughey , dbr:Ellen_Burstyn , dbr:Timothée_Chalamet , dbr:Mackenzie_Foy , dbr:John_Lithgow ;
+        schema:actor            <http://dbpedia.org/resource/Lee%20Armstrong> , <http://dbpedia.org/resource/Ellen%20Burstyn> , <http://dbpedia.org/resource/Matthew%20McConaughey> , <http://dbpedia.org/resource/Aneurin%20Barnard> , <http://dbpedia.org/resource/James%20Bloor> , <http://dbpedia.org/resource/Timoth%C3%A9e%20Chalamet> , <http://dbpedia.org/resource/Mackenzie%20Foy> , <http://dbpedia.org/resource/Fionn%20Whitehead> , <http://dbpedia.org/resource/John%20Lithgow> , <http://dbpedia.org/resource/Damien%20Bonnard> ;
         schema:countryOfOrigin  dbr:USA ;
-        schema:director         dbr:Christopher_Nolan ;
-        schema:musicBy          dbr:Hans_Zimmer ;
+        schema:director         <http://dbpedia.org/resource/Christopher%20Nolan> ;
+        schema:musicBy          <http://dbpedia.org/resource/Hans%20Zimmer> ;
         schema:name             "Interstellar" .
 
-dbr:Matthew_McConaughey
-        a           :Actor ;
-        :appear_on  :2 ;
-        :name       "Matthew McConaughey" .
-
-dbr:John_Lithgow  a  :Actor ;
-        :appear_on  :2 ;
-        :name       "John Lithgow" .
+<http://dbpedia.org/resource/Christian%20Bale>
+        a       :Actor ;
+        :name   "Christian Bale" .
 
 :1      a                       :Film ;
-        :cinematographer        dbr:Hoyte_van_Hoytema ;
-        :screenwritter          dbr:Christopher_Nolan ;
+        :screenwritter          <http://dbpedia.org/resource/Christopher%20Nolan> ;
         :year                   2017 ;
-        schema:actor            dbr:Aneurin_Barnard , dbr:Fionn_Whitehead , dbr:James_Bloor , dbr:Lee_Armstrong , dbr:Damien_Bonnard ;
+        schema:actor            <http://dbpedia.org/resource/Fionn%20Whitehead> , <http://dbpedia.org/resource/John%20Lithgow> , <http://dbpedia.org/resource/Damien%20Bonnard> , <http://dbpedia.org/resource/Matthew%20McConaughey> , <http://dbpedia.org/resource/Aneurin%20Barnard> , <http://dbpedia.org/resource/James%20Bloor> , <http://dbpedia.org/resource/Timoth%C3%A9e%20Chalamet> , <http://dbpedia.org/resource/Mackenzie%20Foy> , <http://dbpedia.org/resource/Ellen%20Burstyn> , <http://dbpedia.org/resource/Lee%20Armstrong> ;
         schema:countryOfOrigin  dbr:USA ;
-        schema:director         dbr:Christopher_Nolan ;
-        schema:musicBy          dbr:Hans_Zimmer ;
+        schema:director         <http://dbpedia.org/resource/Christopher%20Nolan> ;
+        schema:musicBy          <http://dbpedia.org/resource/Hans%20Zimmer> ;
         schema:name             "Dunkirk" .
 
-dbr:Ellen_Burstyn  a  :Actor ;
-        :appear_on  :2 ;
-        :name       "Ellen Burstyn" .
+<http://dbpedia.org/resource/Michael%20Caine>
+        a       :Actor ;
+        :name   "Michael Caine" .
 
-dbr:Aneurin_Barnard  a  :Actor ;
-        :appear_on  :1 ;
-        :name       "Aneurin Barnard" .
+<http://dbpedia.org/resource/Hugh%20Jackman>
+        a       :Actor ;
+        :name   "Hugh Jackman" .
 
-dbr:Fionn_Whitehead  a  :Actor ;
-        :appear_on  :1 ;
-        :name       "Fionn Whitehead" .
+<http://dbpedia.org/resource/Ellen%20Page>
+        a       :Actor ;
+        :name   "Ellen Page" .
 
-dbr:James_Bloor  a  :Actor ;
-        :appear_on  :1 ;
-        :name       "James Bloor" .
+<http://dbpedia.org/resource/John%20Lithgow>
+        a       :Actor ;
+        :name   "John Lithgow" .
 
-dbr:Damien_Bonnard  a  :Actor ;
-        :appear_on  :1 ;
-        :name       "Damien Bonnard" .
+<http://dbpedia.org/resource/Timoth%C3%A9e%20Chalamet>
+        a       :Actor ;
+        :name   "Timothée Chalamet" .
 
-dbr:Hugh_Jackman  a  :Actor ;
-        :appear_on  :4 ;
-        :name       "Hugh Jackman" .
+<http://dbpedia.org/resource/Joseph%20Gordon-Levitt>
+        a       :Actor ;
+        :name   "Joseph Gordon-Levitt" .
 
-dbr:Lee_Armstrong  a  :Actor ;
-        :appear_on  :1 ;
-        :name       "Lee Armstrong" .
+<http://dbpedia.org/resource/Matthew%20McConaughey>
+        a       :Actor ;
+        :name   "Matthew McConaughey" .
 
-dbr:Piper_Perabo  a  :Actor ;
-        :appear_on  :4 ;
-        :name       "Piper Perabo" .
+<http://dbpedia.org/resource/Aneurin%20Barnard>
+        a       :Actor ;
+        :name   "Aneurin Barnard" .
 
-dbr:Joseph_Gordon-Levitt
-        a           :Actor ;
-        :appear_on  :3 ;
-        :name       "Joseph Gordon-Levitt" .
+<http://dbpedia.org/resource/Tom%20Hardy>
+        a       :Actor ;
+        :name   "Tom Hardy" .
 
-dbr:Tom_Hardy  a    :Actor ;
-        :appear_on  :3 ;
-        :name       "Tom Hardy" .
+<http://dbpedia.org/resource/James%20Bloor>
+        a       :Actor ;
+        :name   "James Bloor" .
 
-dbr:Timothée_Chalamet
-        a           :Actor ;
-        :appear_on  :2 ;
-        :name       "Timothée Chalamet" .
+<http://dbpedia.org/resource/Piper%20Perabo>
+        a       :Actor ;
+        :name   "Piper Perabo" .
 
 :4      a                       :Film ;
-        :screenwritter          dbr:Christopher_Nolan , dbr:Jonathan_Nolan ;
+        :screenwritter          <http://dbpedia.org/resource/Jonathan%20Nolan> , <http://dbpedia.org/resource/Christopher%20Nolan> ;
         :year                   2006 ;
-        schema:actor            dbr:Christian_Bale , dbr:Piper_Perabo , dbr:Hugh_Jackman , dbr:Michael_Caine ;
+        schema:actor            <http://dbpedia.org/resource/Christian%20Bale> , <http://dbpedia.org/resource/Piper%20Perabo> , <http://dbpedia.org/resource/Hugh%20Jackman> , <http://dbpedia.org/resource/Ellen%20Page> , <http://dbpedia.org/resource/Leonardo%20DiCaprio> , <http://dbpedia.org/resource/Joseph%20Gordon-Levitt> , <http://dbpedia.org/resource/Tom%20Hardy> , <http://dbpedia.org/resource/Michael%20Caine> ;
         schema:countryOfOrigin  dbr:USA ;
-        schema:director         dbr:Christopher_Nolan ;
-        schema:musicBy          dbr:David_Julyan ;
+        schema:director         <http://dbpedia.org/resource/Christopher%20Nolan> ;
+        schema:musicBy          <http://dbpedia.org/resource/David%20Julyan> ;
         schema:name             "The Prestige" .
 
-dbr:Michael_Caine  a  :Actor ;
-        :appear_on  :4 ;
-        :name       "Michael Caine" .
+<http://dbpedia.org/resource/Ellen%20Burstyn>
+        a       :Actor ;
+        :name   "Ellen Burstyn" .
