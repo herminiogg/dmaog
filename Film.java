@@ -1,4 +1,4 @@
-package com.herminiogarcia.com.herminiogarcia.dmaog;
+package com.herminiogarcia.dmaog;
 
 import com.herminiogarcia.dmaog.common.IRIValue;
 import java.util.List;

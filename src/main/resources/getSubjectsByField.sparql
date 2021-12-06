@@ -1,0 +1,5 @@
+SELECT DISTINCT ?subject WHERE {
+  ?subject a <$type> ;
+           <$fieldIRI> ?object .
+  FILTER (?object = $value)
+}

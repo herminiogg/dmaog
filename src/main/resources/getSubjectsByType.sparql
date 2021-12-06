@@ -1,0 +1,3 @@
+SELECT DISTINCT ?subject WHERE {
+  ?subject a <$type> .
+}

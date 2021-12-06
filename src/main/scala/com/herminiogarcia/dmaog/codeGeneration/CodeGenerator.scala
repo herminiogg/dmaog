@@ -40,6 +40,13 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
     types.toList
   }
 
+  private def getSubjectByType(theType: String, model: Model): String = {
+    val resultSet = doSparqlQuery(model, loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType))
+    val result = resultSet.next()
+    val uri = result.get("subject").asResource().getURI
+    model.getNsPrefixMap.asScala.find(p => uri.startsWith(p._2)).head._2
+  }
+
   private def getAttributesPerType(types: List[String], model: Model): Map[String, List[DataTypedPredicate]] = {
     types.map(t => {
       val sparql = loadFromResources("getPredicatesByType.sparql").replaceFirst("\\$type", t)
@@ -104,6 +111,7 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
       val classCode = classTemplate.replaceAll("\\$package", packageName)
         .replaceAll("\\$className", capitalizedClassName)
         .replaceAll("\\$rdfType", t)
+        .replaceAll("\\$subjectPrefix", getSubjectByType(t, model))
         .replaceAll("\\$attributes", attributesDeclaration)
         .replaceAll("\\$getters", getters)
         .replaceAll("\\$setters", setters)

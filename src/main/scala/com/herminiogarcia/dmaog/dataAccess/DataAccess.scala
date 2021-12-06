@@ -6,16 +6,20 @@ import org.apache.jena.rdf.model.Model
 
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
+import java.util.Optional
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
 class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, mappingLanguage: String = "shexml", reloadMinutes: java.lang.Long = null) extends ResourceLoader with ModelLoader with PrefixedNameConverter {
+
+  private val nsPrefixes: Map[String, String] = getModel.getNsPrefixMap.asScala.toMap
 
   def getAll[T](theClass: Class[T]): util.List[T] = {
     val rdfType = getRDFType(theClass)
     rdfType match {
       case Some(theType) =>
-        val model = loadModel(pathForGeneratedContent + "/data.ttl", Option(mappingRules), Option(mappingLanguage), Option(reloadMinutes))
+        val model = getModel
         val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", theType)
         val query = QueryFactory.create(sparql)
         val queryExecution = QueryExecutionFactory.create(query, model)
@@ -42,10 +46,111 @@ class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, m
     }
   }
 
+  def getById[T](theClass: Class[T], id: String): Optional[T] = {
+    val rdfType = getRDFType(theClass)
+    rdfType match {
+      case Some(theType) =>
+        getSubjectPrefix(theClass) match {
+          case Some(subjectPrefix) =>
+            val model = getModel
+            val fullSubjectIRI = subjectPrefix + id
+            val sparql = loadFromResources("getById.sparql")
+              .replaceFirst("\\$type", theType)
+              .replaceFirst("\\$subjectIRI", fullSubjectIRI)
+            val query = QueryFactory.create(sparql)
+            val queryExecution = QueryExecutionFactory.create(query, model)
+            val resultSet = queryExecution.execSelect()
+            val groupedBySubjectResults = mutable.Map[String, List[(String, String)]]()
+            while(resultSet.hasNext) {
+              val result = resultSet.next()
+              val predicate = result.getResource("predicate")
+              val theObject = result.get("object")
+              val predicateURI = predicate.getURI
+              val objectValue =
+                if (theObject.isLiteral) theObject.asLiteral().getString
+                else theObject.asResource().getURI
+              groupedBySubjectResults.get(fullSubjectIRI) match {
+                case Some(value) =>
+                  val newList = value.+:(predicateURI, objectValue)
+                  groupedBySubjectResults.update(fullSubjectIRI, newList)
+                case None => groupedBySubjectResults.+=(fullSubjectIRI -> List((predicateURI, objectValue)))
+              }
+            }
+            populateObjects(groupedBySubjectResults.toMap, theClass, model).headOption match {
+              case Some(value) => Optional.of(value)
+              case None => Optional.empty()
+            }
+          case None => throw new Exception("The class " + theType + " has not a subjectPrefix field defined. Unable to construct the query without this information.")
+        }
+      case None => Optional.empty()
+    }
+  }
+
+  def getByField[T](theClass: Class[T], fieldName: String, value: String): util.List[T] = {
+    val rdfType = getRDFType(theClass)
+    rdfType match {
+      case Some(theType) =>
+        getFullIRIForFieldName(theClass, fieldName) match {
+          case Some(fullPredicateIRI) =>
+            val model = getModel
+            val sparql = loadFromResources("getSubjectsByField.sparql")
+              .replaceFirst("\\$type", theType)
+              .replaceFirst("\\$fieldIRI", fullPredicateIRI)
+              .replaceFirst("\\$value", getValueForSparqlQuery(value))
+            val query = QueryFactory.create(sparql)
+            val queryExecution = QueryExecutionFactory.create(query, model)
+            val resultSet = queryExecution.execSelect()
+            val subjects = mutable.ListBuffer[String]()
+            while(resultSet.hasNext) {
+              val result = resultSet.next()
+              val subjectURI = result.getResource("subject").getURI
+              val namespace = model.getNsPrefixMap.asScala
+                .find(p => subjectURI.startsWith(p._2)).head._2
+              subjects.append(subjectURI.replaceFirst(namespace, ""))
+            }
+            subjects.toList.map(getById(theClass, _)).filter(_.isPresent).map(_.get()).asJava
+          case None => throw new Exception("Field " + fieldName + " not found in type " + theClass)
+        }
+      case None => new util.ArrayList[T]()
+    }
+  }
+
+  private def getValueForSparqlQuery(value: String): String = {
+    if(value.startsWith("http://") || value.startsWith("https://"))
+      "<" + value + ">"
+    else {
+      Try(value.toFloat) match {
+        case Success(_) => value
+        case Failure(_) => "'" + value + "'"
+      }
+    }
+  }
+
+  private def getModel = {
+    loadModel(pathForGeneratedContent + "/data.ttl", Option(mappingRules), Option(mappingLanguage), Option(reloadMinutes))
+  }
+
+  private def getFullIRIForFieldName[T](theClass: Class[T], fieldName: String) = {
+    val prefixedNameConverterFunc = convertPrefixedName(nsPrefixes.toMap) _
+    val prefix = nsPrefixes.keys.find(p => {
+      if(p.isEmpty) false
+      else fieldName.startsWith(p)
+    })
+    val fieldNameWithoutPrefix = prefix match {
+      case Some(value) => fieldName.replaceFirst(value, "")
+      case None =>
+        if(nsPrefixes.keys.exists(_.isEmpty)) fieldName
+        else throw new Exception("Field " + fieldName + " not found in the type " + theClass.getName)
+    }
+    val capitalizedFieldName = fieldNameWithoutPrefix.charAt(0).toLower + fieldNameWithoutPrefix.substring(1)
+    nsPrefixes.toSeq.find(s => {
+      prefixedNameConverterFunc(s._2 + capitalizedFieldName) == fieldName
+    }).map(_._2 + capitalizedFieldName)
+  }
+
   private def populateObjects[T](groupedBySubjectResults: Map[String, List[(String, String)]], theClass: Class[T], model: Model): List[T] = {
-    val prefixes = model.getNsPrefixMap.asScala.toMap
-    val prefixedNameConverterFunc = convertPrefixedName(prefixes)_
-    val prefixedValueConverterFunc = convertPrefixedNameToValue(prefixes)_
+    val prefixedNameConverterFunc = convertPrefixedName(nsPrefixes)_
+    val prefixedValueConverterFunc = convertPrefixedNameToValue(nsPrefixes)_
     val results = for(key <- groupedBySubjectResults.keys) yield {
       val results = groupedBySubjectResults(key)
       val instance = theClass.newInstance()
@@ -104,6 +209,14 @@ class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, m
     val rdfType = instance.getClass.getField("rdfType")
     if(rdfType != null) {
       Some(rdfType.get(instance).toString)
+    } else None
+  }
+
+  private def getSubjectPrefix(theClass: Class[_]): Option[String] = {
+    val instance = theClass.newInstance()
+    val subjectPrefix = instance.getClass.getField("subjectPrefix")
+    if(subjectPrefix != null) {
+      Some(subjectPrefix.get(instance).toString)
     } else None
   }
 
