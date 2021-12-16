@@ -233,7 +233,11 @@ class DataAccess(pathForGeneratedContent: String,
     val prefixes = model.getNsPrefixMap.asScala.toMap
     val prefixedValueConverterFunc = convertPrefixedNameToValue(prefixes)_
     val localPart = prefixedValueConverterFunc(iri)
-    new IRIValue(iri, iri.replaceFirst(localPart, ""), localPart)
+    val namespace = Try(iri.replaceFirst(localPart, "")) match {
+      case Success(value) => value
+      case Failure(_) => iri
+    }
+    new IRIValue(iri, namespace, localPart)
   }
 
 }
