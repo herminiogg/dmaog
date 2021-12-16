@@ -10,11 +10,12 @@ public class Film {
 
     private Integer year;
     private List<IRIValue> schemaActor;
-    private List<IRIValue> screenwritter;
     private String schemaName;
-    private IRIValue schemaMusicBy;
+    private List<IRIValue> screenwritter;
     private IRIValue schemaCountryOfOrigin;
     private IRIValue schemaDirector;
+    private IRIValue schemaMusicBy;
+    private IRIValue cinematographer;
     private IRIValue id;
 
     public Film() {
@@ -29,16 +30,12 @@ public class Film {
         return this.schemaActor;
     }
 
-    public List<IRIValue> getScreenwritter() {
-        return this.screenwritter;
-    }
-
     public String getSchemaName() {
         return this.schemaName;
     }
 
-    public IRIValue getSchemaMusicBy() {
-        return this.schemaMusicBy;
+    public List<IRIValue> getScreenwritter() {
+        return this.screenwritter;
     }
 
     public IRIValue getSchemaCountryOfOrigin() {
@@ -47,6 +44,14 @@ public class Film {
 
     public IRIValue getSchemaDirector() {
         return this.schemaDirector;
+    }
+
+    public IRIValue getSchemaMusicBy() {
+        return this.schemaMusicBy;
+    }
+
+    public IRIValue getCinematographer() {
+        return this.cinematographer;
     }
 
     public IRIValue getId() {
@@ -64,18 +69,13 @@ public class Film {
         return this;
     }
 
-    public Film setScreenwritter(List<IRIValue> screenwritter) {
-        this.screenwritter = screenwritter;
-        return this;
-    }
-
     public Film setSchemaName(String schemaName) {
         this.schemaName = schemaName;
         return this;
     }
 
-    public Film setSchemaMusicBy(IRIValue schemaMusicBy) {
-        this.schemaMusicBy = schemaMusicBy;
+    public Film setScreenwritter(List<IRIValue> screenwritter) {
+        this.screenwritter = screenwritter;
         return this;
     }
 
@@ -86,6 +86,16 @@ public class Film {
 
     public Film setSchemaDirector(IRIValue schemaDirector) {
         this.schemaDirector = schemaDirector;
+        return this;
+    }
+
+    public Film setSchemaMusicBy(IRIValue schemaMusicBy) {
+        this.schemaMusicBy = schemaMusicBy;
+        return this;
+    }
+
+    public Film setCinematographer(IRIValue cinematographer) {
+        this.cinematographer = cinematographer;
         return this;
     }
 

@@ -10,16 +10,17 @@ import java.util.Date
 
 trait ModelLoader extends MappingRulesRunner {
 
-  protected def loadModel(pathToRDF: String, mappingRules: Option[String], mappingLanguage: Option[String], reloadMinutes: Option[Long]): Model = mappingRules match {
+  protected def loadModel(pathToRDF: String, mappingRules: Option[String], mappingLanguage: Option[String],
+                          reloadMinutes: Option[Long], username: Option[String], password: Option[String], drivers: Option[String]): Model = mappingRules match {
     case Some(rules) =>
-      if(!new File(pathToRDF).exists()) applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"))
+      if(!new File(pathToRDF).exists()) applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"), username, password, drivers)
       else reloadMinutes match {
         case Some(minutes) =>
           val modifiedTime = new File(pathToRDF).lastModified()
           val currentTime = new Date().getTime
           val reloadMillis = minutes * 60 * 1000
           if((currentTime - modifiedTime) > reloadMillis) {
-            applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"))
+            applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"), username, password, drivers)
           } else {
             loadExistingModel(pathToRDF)
           }
@@ -32,8 +33,9 @@ trait ModelLoader extends MappingRulesRunner {
     RDFDataMgr.loadModel(pathToRDF)
   }
 
-  private def applyMappingRules(pathToRDF: String, mappingRules: String, mappingLanguage: String): Model = {
-    val turtle = generateDataByMappingLanguage(mappingRules, mappingLanguage)
+  private def applyMappingRules(pathToRDF: String, mappingRules: String, mappingLanguage: String,
+                                username: Option[String], password: Option[String], drivers: Option[String]): Model = {
+    val turtle = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
     val fileWriter = new FileWriter(pathToRDF)
     fileWriter.write(turtle)
     fileWriter.close()

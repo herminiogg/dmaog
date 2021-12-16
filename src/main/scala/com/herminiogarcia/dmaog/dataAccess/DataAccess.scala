@@ -11,7 +11,13 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, mappingLanguage: String = "shexml", reloadMinutes: java.lang.Long = null) extends ResourceLoader with ModelLoader with PrefixedNameConverter {
+class DataAccess(pathForGeneratedContent: String,
+                 mappingRules: String = null,
+                 mappingLanguage: String = "shexml",
+                 reloadMinutes: java.lang.Long = null,
+                 username: String = null,
+                 password: String = null,
+                 drivers: String = "") extends ResourceLoader with ModelLoader with PrefixedNameConverter {
 
   private val nsPrefixes: Map[String, String] = getModel.getNsPrefixMap.asScala.toMap
 
@@ -127,7 +133,8 @@ class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, m
   }
 
   private def getModel = {
-    loadModel(pathForGeneratedContent + "/data.ttl", Option(mappingRules), Option(mappingLanguage), Option(reloadMinutes))
+    loadModel(pathForGeneratedContent + "/data.ttl", Option(mappingRules), Option(mappingLanguage),
+      Option(reloadMinutes), Option(username), Option(password), Option(drivers))
   }
 
   private def getFullIRIForFieldName[T](theClass: Class[T], fieldName: String) = {
@@ -172,7 +179,7 @@ class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, m
           } else {
             if(setterParameterType.getMethods.exists(_.getName == "valueOf") && setterParameterType != classOf[String]) {
               val numericConversion = setterParameterType.getMethod("valueOf", classOf[String])
-              val parsedValue = numericConversion.invoke(setterParameterType, value)
+              val parsedValue = Try(numericConversion.invoke(setterParameterType, value)).getOrElse("null")
               invokeSetterOrAddToList(m, getterMethod, instance, parsedValue, isList)
             } else {
               val castedValue = setterParameterType.cast(value)
@@ -187,20 +194,22 @@ class DataAccess(pathForGeneratedContent: String, mappingRules: String = null, m
   }
 
   private def invokeSetterOrAddToList[T, S](setter: Method, getter: Option[Method], instance: T, value: S, list: Boolean): Unit = {
-    if(list) {
-      getter match {
-        case Some(getterMethod) =>
-          val possibleList = getterMethod.invoke(instance)
-          val valueList = if(possibleList == null) {
-            val newList = new util.ArrayList[S]()
-            setter.invoke(instance, newList)
-            newList
-          } else possibleList
-          valueList.asInstanceOf[util.List[S]].add(value)
-        case None => throw new Exception("Getter equivalent for setter" + setter.getName + " not found")
+    if(value != null && String.valueOf(value) != "null") {
+      if(list) {
+        getter match {
+          case Some(getterMethod) =>
+            val possibleList = getterMethod.invoke(instance)
+            val valueList = if(possibleList == null) {
+              val newList = new util.ArrayList[S]()
+              setter.invoke(instance, newList)
+              newList
+            } else possibleList
+            valueList.asInstanceOf[util.List[S]].add(value)
+          case None => throw new Exception("Getter equivalent for setter" + setter.getName + " not found")
+        }
+      } else {
+        setter.invoke(instance, value.asInstanceOf[Object])
       }
-    } else {
-      setter.invoke(instance, value.asInstanceOf[Object])
     }
   }
 

@@ -8,8 +8,9 @@ public class $className {
 
     private DataAccess dataAccess;
 
-    public $className(String dataFile, String mappingRules, String mappingLanguage, Long reloadMinutes) {
-        this.dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes);
+    public $className(String dataFile, String mappingRules, String mappingLanguage, Long reloadMinutes, String username, String password) {
+        String drivers = "$driversString";
+        this.dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes, username, password, drivers);
     }
 
     public List<$type> getAll() {

@@ -10,13 +10,15 @@ import org.apache.jena.rdf.model.{Model, Resource}
 import java.io.{File, PrintWriter}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
-class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerate: String, packageName: String) extends ResourceLoader
+class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerate: String, packageName: String,
+                   username: Option[String], password: Option[String], drivers: Option[String]) extends ResourceLoader
         with ModelLoader with PrefixedNameConverter with MappingRulesRunner {
 
   def generate(): Unit = {
     val pathToRDF = generateData()
-    val model = loadModel(pathToRDF, None, null, None)
+    val model = loadModel(pathToRDF, None, null, None, username, password, drivers)
     val types = getTypes(model)
     val attributesPerType = getAttributesPerType(types, model)
     generateClasses(attributesPerType)
@@ -24,7 +26,7 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
 
 
   private def generateData(): String = {
-    val rdfResult = generateDataByMappingLanguage(mappingRules, mappingLanguage)
+    val rdfResult = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
     val finalPath = pathToGenerate + "/" + "data.ttl"
     writeFile(finalPath, rdfResult)
     finalPath
@@ -69,7 +71,10 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
           .replaceFirst("\\$type", t)
           .replaceFirst("\\$predicate", predicate)
         val cardinalityResultSet = doSparqlQuery(model, cardinalitySparql)
-        val objectCardinality = cardinalityResultSet.next().get("cardinality").asLiteral().getInt
+        val objectCardinality = Try(cardinalityResultSet.next().get("cardinality").asLiteral().getInt) match {
+          case Success(value) => value
+          case Failure(exception) => 0
+        }
 
         // Datatype with cardinality conversion
         val dataType = if(theObject.isLiteral)
@@ -97,7 +102,7 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
 
   private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]]): Unit = {
     val rdfsType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-    val model = loadModel(pathToGenerate + "/data.ttl", None, None, None)
+    val model = loadModel(pathToGenerate + "/data.ttl", None, None, None, username, password, drivers)
     val prefixes = model.getNsPrefixMap.asScala.toMap
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {
@@ -121,6 +126,7 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
       val serviceCode = serviceTemplate.replaceAll("\\$package", packageName)
         .replaceAll("\\$className", capitalizedClassName + "Service")
         .replaceAll("\\$type", capitalizedClassName)
+        .replaceFirst("\\$driversString", drivers.getOrElse(""))
       writeFile(capitalizedClassName + "Service.java", serviceCode)
     })
   }

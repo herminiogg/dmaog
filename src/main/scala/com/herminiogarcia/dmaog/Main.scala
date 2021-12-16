@@ -33,11 +33,21 @@ class Main extends Callable[Int] {
   @Option(names = Array("-p", "--package"), required = true, description = Array("Package information for the generated files"))
   private var packageName: String = ""
 
+  @Option(names = Array("-u", "--username"), description = Array("Username in case of database connection"))
+  private var username: String = null
+
+  @Option(names = Array("-ps", "--password"), description = Array("Password in case of database connection"))
+  private var password: String = null
+
+  @Option(names = Array("-dr", "--drivers"), description = Array("Drivers string in case it is not included in ShExML"))
+  private var drivers: String = null
+
   override def call(): Int = {
     val fileHandler = scala.io.Source.fromFile(mappingRules)
     try {
       val fileContent = fileHandler.mkString
-      new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName).generate()
+      new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName,
+        scala.Option(username), scala.Option(password), scala.Option(drivers)).generate()
       1 // well finished
     } finally { fileHandler.close() }
   }

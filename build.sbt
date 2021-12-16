@@ -22,3 +22,8 @@ libraryDependencies += "be.ugent.rml" % "rmlmapper" % "4.9.0"
 
 // Allows to avoid the conflicts between ShExML and RML jena versions
 dependencyOverrides += "org.apache.jena" % "apache-jena-libs" % "3.8.0"
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}

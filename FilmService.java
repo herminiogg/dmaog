@@ -1,4 +1,4 @@
-package com.herminiogarcia.com.herminiogarcia.dmaog;
+package com.herminiogarcia.dmaog;
 
 import com.herminiogarcia.dmaog.dataAccess.DataAccess;
 import java.util.List;
@@ -8,8 +8,9 @@ public class FilmService {
 
     private DataAccess dataAccess;
 
-    public FilmService(String dataFile, String mappingRules, String mappingLanguage, Long reloadMinutes) {
-        this.dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes);
+    public FilmService(String dataFile, String mappingRules, String mappingLanguage, Long reloadMinutes, String username, String password) {
+        String drivers = "algo%algo;otro%otro";
+        this.dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes, username, password, drivers);
     }
 
     public List<Film> getAll() {

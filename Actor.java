@@ -9,6 +9,7 @@ public class Actor {
     public final static String subjectPrefix = "http://dbpedia.org/resource/";
 
     private String name;
+    private IRIValue appear_on;
     private IRIValue id;
 
     public Actor() {
@@ -19,6 +20,10 @@ public class Actor {
         return this.name;
     }
 
+    public IRIValue getAppear_on() {
+        return this.appear_on;
+    }
+
     public IRIValue getId() {
         return this.id;
     }
@@ -26,6 +31,11 @@ public class Actor {
 
     public Actor setName(String name) {
         this.name = name;
+        return this;
+    }
+
+    public Actor setAppear_on(IRIValue appear_on) {
+        this.appear_on = appear_on;
         return this;
     }
 

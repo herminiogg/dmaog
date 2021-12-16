@@ -15,10 +15,12 @@ import scala.reflect.io.File
 
 trait MappingRulesRunner {
 
-  def generateDataByMappingLanguage(mappingRules: String, mappingLanguage: String): String = {
+  def generateDataByMappingLanguage(mappingRules: String, mappingLanguage: String,
+                                    username: Option[String], password: Option[String],
+                                    drivers: Option[String]): String = {
     val language = mappingLanguage.toLowerCase()
     if(language == "shexml") {
-      new MappingLauncher().launchMapping(mappingRules, "Turtle")
+      new MappingLauncher(username.getOrElse(""), password.getOrElse(""), drivers.getOrElse("")).launchMapping(mappingRules, "Turtle")
     } else if(language == "rml") {
       val mappingStream = new ByteArrayInputStream(mappingRules.getBytes)
       val rmlStore = QuadStoreFactory.read(mappingStream)
