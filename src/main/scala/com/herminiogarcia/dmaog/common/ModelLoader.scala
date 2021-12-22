@@ -5,7 +5,7 @@ import org.apache.jena.rdf.model.Model
 import org.apache.jena.riot.RDFDataMgr
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import java.io.{File, FileWriter}
+import java.io.{File, PrintWriter}
 import java.util.Date
 import scala.util.{Failure, Success}
 
@@ -46,7 +46,7 @@ trait ModelLoader extends MappingRulesRunner {
       turtle onComplete {
         case Success(result) =>
           synchronized {
-            val fileWriter = new FileWriter(pathToRDF)
+            val fileWriter = new PrintWriter(new File(pathToRDF))
             fileWriter.write(result)
             fileWriter.close()
             updateInProgress = false
