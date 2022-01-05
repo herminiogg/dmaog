@@ -1,4 +1,4 @@
-package com.herminiogarcia.dmaog;
+package com.herminiogarcia.com.herminiogarcia.dmaog;
 
 import com.herminiogarcia.dmaog.dataAccess.DataAccess;
 import java.util.List;

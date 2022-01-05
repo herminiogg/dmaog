@@ -1,14 +1,18 @@
 package com.herminiogarcia.dmaog.common
 
 import com.herminiogarcia.com.herminiogarcia.dmaog.common.MappingRulesRunner
-import es.weso.shexml.MappingLauncher
 import org.apache.jena.rdf.model.Model
 import org.apache.jena.riot.RDFDataMgr
 
-import java.io.{File, FileWriter}
+import scala.concurrent.ExecutionContext.Implicits.global
+import java.io.{File, PrintWriter}
 import java.util.Date
+import scala.util.{Failure, Success}
 
 trait ModelLoader extends MappingRulesRunner {
+
+  @volatile var updateInProgress = false
+  @volatile var fileAccessInProgress = false
 
   protected def loadModel(pathToRDF: String, mappingRules: Option[String], mappingLanguage: Option[String],
                           reloadMinutes: Option[Long], username: Option[String], password: Option[String], drivers: Option[String]): Model = mappingRules match {
@@ -29,16 +33,29 @@ trait ModelLoader extends MappingRulesRunner {
     case None => loadExistingModel(pathToRDF)
   }
 
-  private def loadExistingModel(pathToRDF: String) = {
+  private def loadExistingModel(pathToRDF: String): Model = synchronized {
     RDFDataMgr.loadModel(pathToRDF)
   }
 
   private def applyMappingRules(pathToRDF: String, mappingRules: String, mappingLanguage: String,
                                 username: Option[String], password: Option[String], drivers: Option[String]): Model = {
-    val turtle = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
-    val fileWriter = new FileWriter(pathToRDF)
-    fileWriter.write(turtle)
-    fileWriter.close()
+    org.apache.jena.query.ARQ.init()
+    if(!updateInProgress) {
+      val turtle = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
+      updateInProgress = true
+      turtle onComplete {
+        case Success(result) =>
+          synchronized {
+            val fileWriter = new PrintWriter(new File(pathToRDF))
+            fileWriter.write(result)
+            fileWriter.close()
+            updateInProgress = false
+          }
+        case Failure(exception) =>
+          updateInProgress = false
+          throw exception
+      }
+    }
     loadExistingModel(pathToRDF)
   }
 

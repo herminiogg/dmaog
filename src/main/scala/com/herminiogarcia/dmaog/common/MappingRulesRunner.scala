@@ -5,19 +5,21 @@ import be.ugent.rml.{Executor, Utils}
 import be.ugent.rml.functions.FunctionLoader
 import be.ugent.rml.records.RecordsFactory
 import be.ugent.rml.store.{QuadStoreFactory, RDF4JStore}
-import be.ugent.rml.term.NamedNode
 import es.weso.shexml.MappingLauncher
 import org.apache.jena.query.DatasetFactory
 import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.io.File
 
 trait MappingRulesRunner {
 
+
   def generateDataByMappingLanguage(mappingRules: String, mappingLanguage: String,
                                     username: Option[String], password: Option[String],
-                                    drivers: Option[String]): String = {
+                                    drivers: Option[String]): Future[String] = Future {
     val language = mappingLanguage.toLowerCase()
     if(language == "shexml") {
       new MappingLauncher(username.getOrElse(""), password.getOrElse(""), drivers.getOrElse("")).launchMapping(mappingRules, "Turtle")

@@ -10,6 +10,8 @@ import org.apache.jena.rdf.model.{Model, Resource}
 import java.io.{File, PrintWriter}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerate: String, packageName: String,
@@ -28,7 +30,8 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
   private def generateData(): String = {
     val rdfResult = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
     val finalPath = pathToGenerate + "/" + "data.ttl"
-    writeFile(finalPath, rdfResult)
+    val result = Await.result(rdfResult, Duration.Inf)
+    writeFile(finalPath, result)
     finalPath
   }
 
@@ -126,9 +129,14 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
       val serviceCode = serviceTemplate.replaceAll("\\$package", packageName)
         .replaceAll("\\$className", capitalizedClassName + "Service")
         .replaceAll("\\$type", capitalizedClassName)
-        .replaceFirst("\\$driversString", drivers.getOrElse(""))
       writeFile(capitalizedClassName + "Service.java", serviceCode)
     })
+    val singletonCode = loadFromResources("javaDataAccessSingleton.java")
+      .replaceFirst("\\$package", packageName)
+      .replaceFirst("\\$drivers", drivers.getOrElse(""))
+      .replaceFirst("\\$pathToData", pathToGenerate)
+    writeFile("DataAccessSingleton.java", singletonCode)
+
   }
 
   private def generateAttributesCode(template: String, attributeName: String, dataType: String, prefixedNameConverterFunc: String => String): String = {

@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-class DataAccess(pathForGeneratedContent: String,
+class DataAccess(fileNameForGeneratedContent: String,
                  mappingRules: String = null,
                  mappingLanguage: String = "shexml",
                  reloadMinutes: java.lang.Long = null,
@@ -133,7 +133,7 @@ class DataAccess(pathForGeneratedContent: String,
   }
 
   private def getModel = {
-    loadModel(pathForGeneratedContent + "/data.ttl", Option(mappingRules), Option(mappingLanguage),
+    loadModel(fileNameForGeneratedContent, Option(mappingRules), Option(mappingLanguage),
       Option(reloadMinutes), Option(username), Option(password), Option(drivers))
   }
 
