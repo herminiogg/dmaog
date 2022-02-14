@@ -5,7 +5,7 @@ import com.herminiogarcia.dmaog.dataAccess.DataAccess;
 public class DataAccessSingleton {
 
     private static DataAccess dataAccess;
-    private static String dataFile = "$pathToData/data.ttl";
+    private static String dataFile = "$pathToData";
     private static String mappingRules;
     private static String mappingLanguage;
     private static Long reloadMinutes;

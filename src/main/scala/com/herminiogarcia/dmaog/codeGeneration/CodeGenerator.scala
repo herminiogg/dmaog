@@ -29,10 +29,9 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
 
   private def generateData(): String = {
     val rdfResult = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
-    val finalPath = pathToGenerate + "/" + "data.ttl"
     val result = Await.result(rdfResult, Duration.Inf)
-    writeFile(finalPath, result)
-    finalPath
+    writeFile("data.ttl", result)
+    pathToGenerate + "/" + "data.ttl"
   }
 
   private def getTypes(model: Model): List[String] = {
@@ -105,7 +104,8 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
 
   private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]]): Unit = {
     val rdfsType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-    val model = loadModel(pathToGenerate + "/data.ttl", None, None, None, username, password, drivers)
+    val finalPath = if(pathToGenerate.endsWith("/")) pathToGenerate + "data.ttl" else pathToGenerate + "/" + "data.ttl"
+    val model = loadModel(finalPath, None, None, None, username, password, drivers)
     val prefixes = model.getNsPrefixMap.asScala.toMap
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {
@@ -134,7 +134,7 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
     val singletonCode = loadFromResources("javaDataAccessSingleton.java")
       .replaceFirst("\\$package", packageName)
       .replaceFirst("\\$drivers", drivers.getOrElse(""))
-      .replaceFirst("\\$pathToData", pathToGenerate)
+      .replaceFirst("\\$pathToData", finalPath)
     writeFile("DataAccessSingleton.java", singletonCode)
 
   }
@@ -152,7 +152,7 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
   }
 
   private def writeFile(filename: String, content: String): Unit = {
-    val file = new PrintWriter(new File(filename))
+    val file = new PrintWriter(new File(pathToGenerate + "/" + filename))
     file.write(content)
     file.close()
   }
