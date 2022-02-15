@@ -20,6 +20,8 @@ libraryDependencies += "info.picocli" % "picocli" % "4.0.4"
 
 libraryDependencies += "be.ugent.rml" % "rmlmapper" % "4.9.0"
 
+libraryDependencies += "org.scalatest" % "scalatest_2.12" % "3.2.11" % "test"
+
 // Allows to avoid the conflicts between ShExML and RML jena versions
 dependencyOverrides += "org.apache.jena" % "apache-jena-libs" % "3.8.0"
 
