@@ -1,11 +1,10 @@
-package com.herminiogarcia
 package com.herminiogarcia.dmaog.common
 
 import be.ugent.rml.{Executor, Utils}
 import be.ugent.rml.functions.FunctionLoader
 import be.ugent.rml.records.RecordsFactory
 import be.ugent.rml.store.{QuadStoreFactory, RDF4JStore}
-import es.weso.shexml.MappingLauncher
+import com.herminiogarcia.shexml.MappingLauncher
 import org.apache.jena.query.DatasetFactory
 import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
 

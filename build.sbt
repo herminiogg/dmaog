@@ -2,15 +2,13 @@ organization := "com.herminiogarcia"
 
 name := "DMAOG"
 
-version := "0.1"
+version := "0.1.0"
 
 scalaVersion := "2.12.4"
 
 idePackagePrefix := Some("com.herminiogarcia")
 
-resolvers += "jitpack" at "https://jitpack.io"
-
-libraryDependencies += "com.github.herminiogg" % "ShExML" % "v0.2.7"
+libraryDependencies += "com.herminiogarcia" %% "shexml" % "0.3.0"
 
 libraryDependencies += "org.apache.jena" % "apache-jena-libs" % "3.8.0" pomOnly()
 

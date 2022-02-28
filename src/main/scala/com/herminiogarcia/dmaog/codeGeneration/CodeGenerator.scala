@@ -1,6 +1,6 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
-import com.herminiogarcia.com.herminiogarcia.dmaog.common.MappingRulesRunner
+import com.herminiogarcia.dmaog.common.MappingRulesRunner
 import com.herminiogarcia.dmaog.common.{DataTypedPredicate, ModelLoader, PrefixedNameConverter, ResourceLoader}
 import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.datatypes.xsd.XSDDatatype

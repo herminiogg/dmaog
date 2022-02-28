@@ -1,6 +1,5 @@
 package com.herminiogarcia.dmaog.common
 
-import com.herminiogarcia.com.herminiogarcia.dmaog.common.MappingRulesRunner
 import org.apache.jena.rdf.model.Model
 import org.apache.jena.riot.RDFDataMgr
 
