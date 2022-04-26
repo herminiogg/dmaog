@@ -6,8 +6,6 @@ version := "0.1.0"
 
 scalaVersion := "2.12.4"
 
-idePackagePrefix := Some("com.herminiogarcia")
-
 libraryDependencies += "com.herminiogarcia" %% "shexml" % "0.3.0"
 
 libraryDependencies += "org.apache.jena" % "apache-jena-libs" % "3.8.0" pomOnly()
