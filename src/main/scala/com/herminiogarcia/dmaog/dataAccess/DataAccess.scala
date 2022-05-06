@@ -1,9 +1,11 @@
 package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.common.{IRIValue, ModelLoader, PrefixedNameConverter, ResourceLoader}
-import org.apache.jena.query.{QueryExecutionFactory, QueryFactory}
-import org.apache.jena.rdf.model.Model
+import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet}
+import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
+import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import java.util.Optional
@@ -22,73 +24,93 @@ class DataAccess(fileNameForGeneratedContent: String,
   private val nsPrefixes: Map[String, String] = getModel.getNsPrefixMap.asScala.toMap
 
   def getAll[T](theClass: Class[T]): util.List[T] = {
-    val rdfType = getRDFType(theClass)
-    rdfType match {
-      case Some(theType) =>
-        val model = getModel
-        val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", theType)
-        val query = QueryFactory.create(sparql)
-        val queryExecution = QueryExecutionFactory.create(query, model)
-        val resultSet = queryExecution.execSelect()
-        val groupedBySubjectResults = mutable.Map[String, List[(String, String)]]()
-        while(resultSet.hasNext) {
-          val result = resultSet.next()
-          val subject = result.getResource("subject")
-          val predicate = result.getResource("predicate")
-          val theObject = result.get("object")
-          val predicateURI = predicate.getURI
-          val objectValue =
-            if(theObject.isLiteral) theObject.asLiteral().getString
-            else theObject.asResource().getURI
-          groupedBySubjectResults.get(subject.getURI) match {
-            case Some(value) =>
-              val newList = value.+: (predicateURI, objectValue)
-              groupedBySubjectResults.update(subject.getURI, newList)
-            case None => groupedBySubjectResults.+= (subject.getURI -> List((predicateURI, objectValue)))
-          }
-        }
-        populateObjects(groupedBySubjectResults.toMap, theClass, model).asJava
-      case None => new util.ArrayList[T]()
+    getRDFType(theClass).map(t => {
+      val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", t)
+      def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
+      def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
+      val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+      populateObjects(groupedBySubjectResults, theClass).asJava
+    }).getOrElse(new util.ArrayList[T]())
+  }
+
+
+  def getAll[T](theClass: Class[T], rdfFormat: String): String = {
+    getRDFType(theClass).map(t => {
+      val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", t)
+      def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
+      def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
+      val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+      generateRDF(groupedBySubjectResults, rdfFormat)
+    }).getOrElse("")
+  }
+
+  private def getGroupedStatements(sparql: String,
+                                   getSubjectFunction: QuerySolution => String,
+                                   getPredicateFunction: QuerySolution => String): Map[String, List[(String, String)]] = {
+    val model = getModel
+    val query = QueryFactory.create(sparql)
+    val queryExecution = QueryExecutionFactory.create(query, model)
+    val resultSet = queryExecution.execSelect()
+    val groupedBySubjectResults = mutable.Map[String, List[(String, String)]]()
+    while(resultSet.hasNext) {
+      val result = resultSet.next()
+      val subject = getSubjectFunction(result)
+      val predicate = getPredicateFunction(result)
+      val theObject = result.get("object")
+      val predicateURI = predicate
+      val objectValue =
+        if(theObject.isLiteral) theObject.asLiteral().getString
+        else theObject.asResource().getURI
+      groupedBySubjectResults.get(subject) match {
+        case Some(value) =>
+          val newList = value.+: (predicateURI, objectValue)
+          groupedBySubjectResults.update(subject, newList)
+        case None => groupedBySubjectResults.+= (subject -> List((predicateURI, objectValue)))
+      }
     }
+    groupedBySubjectResults.toMap
   }
 
   def getById[T](theClass: Class[T], id: String): Optional[T] = {
     val rdfType = getRDFType(theClass)
     rdfType match {
-      case Some(theType) =>
-        getSubjectPrefix(theClass) match {
-          case Some(subjectPrefix) =>
-            val model = getModel
-            val fullSubjectIRI = subjectPrefix + id
-            val sparql = loadFromResources("getById.sparql")
-              .replaceFirst("\\$type", theType)
-              .replaceFirst("\\$subjectIRI", fullSubjectIRI)
-            val query = QueryFactory.create(sparql)
-            val queryExecution = QueryExecutionFactory.create(query, model)
-            val resultSet = queryExecution.execSelect()
-            val groupedBySubjectResults = mutable.Map[String, List[(String, String)]]()
-            while(resultSet.hasNext) {
-              val result = resultSet.next()
-              val predicate = result.getResource("predicate")
-              val theObject = result.get("object")
-              val predicateURI = predicate.getURI
-              val objectValue =
-                if (theObject.isLiteral) theObject.asLiteral().getString
-                else theObject.asResource().getURI
-              groupedBySubjectResults.get(fullSubjectIRI) match {
-                case Some(value) =>
-                  val newList = value.+:(predicateURI, objectValue)
-                  groupedBySubjectResults.update(fullSubjectIRI, newList)
-                case None => groupedBySubjectResults.+=(fullSubjectIRI -> List((predicateURI, objectValue)))
-              }
-            }
-            populateObjects(groupedBySubjectResults.toMap, theClass, model).headOption match {
-              case Some(value) => Optional.of(value)
-              case None => Optional.empty()
-            }
-          case None => throw new Exception("The class " + theType + " has not a subjectPrefix field defined. Unable to construct the query without this information.")
+      case Some(theType) => getSubjectPrefix(theClass) match {
+        case Some(subjectPrefix) => {
+          val fullSubjectIRI = subjectPrefix + id
+          val sparql = loadFromResources("getById.sparql")
+            .replaceFirst("\\$type", theType)
+            .replaceFirst("\\$subjectIRI", fullSubjectIRI)
+          def getSubject: QuerySolution => String = _ => fullSubjectIRI
+          def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
+          val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+          populateObjects(groupedBySubjectResults, theClass).headOption match {
+            case Some(value) => Optional.of(value)
+            case None => Optional.empty()
+          }
         }
+        case None => throw new Exception ("The class " + theType + " has not a subjectPrefix field defined. Unable to construct the query without this information.")
+      }
       case None => Optional.empty()
+    }
+  }
+
+  def getById[T](theClass: Class[T], id: String, rdfFormat: String): String = {
+    val rdfType = getRDFType(theClass)
+    rdfType match {
+      case Some(theType) => getSubjectPrefix(theClass) match {
+        case Some(subjectPrefix) => {
+          val fullSubjectIRI = subjectPrefix + id
+          val sparql = loadFromResources("getById.sparql")
+            .replaceFirst("\\$type", theType)
+            .replaceFirst("\\$subjectIRI", fullSubjectIRI)
+          def getSubject: QuerySolution => String = _ => fullSubjectIRI
+          def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
+          val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+          generateRDF(groupedBySubjectResults, rdfFormat)
+        }
+        case None => throw new Exception ("The class " + theType + " has not a subjectPrefix field defined. Unable to construct the query without this information.")
+      }
+      case None => ""
     }
   }
 
@@ -98,26 +120,50 @@ class DataAccess(fileNameForGeneratedContent: String,
       case Some(theType) =>
         getFullIRIForFieldName(theClass, fieldName) match {
           case Some(fullPredicateIRI) =>
-            val model = getModel
-            val sparql = loadFromResources("getSubjectsByField.sparql")
-              .replaceFirst("\\$type", theType)
-              .replaceFirst("\\$fieldIRI", fullPredicateIRI)
-              .replaceFirst("\\$value", getValueForSparqlQuery(value))
-            val query = QueryFactory.create(sparql)
-            val queryExecution = QueryExecutionFactory.create(query, model)
-            val resultSet = queryExecution.execSelect()
-            val subjects = mutable.ListBuffer[String]()
-            while(resultSet.hasNext) {
-              val result = resultSet.next()
-              val subjectURI = result.getResource("subject").getURI
-              val namespace = model.getNsPrefixMap.asScala
-                .find(p => subjectURI.startsWith(p._2)).head._2
-              subjects.append(subjectURI.replaceFirst(namespace, ""))
-            }
-            subjects.toList.map(getById(theClass, _)).filter(_.isPresent).map(_.get()).asJava
+            doGetByField(theType, fullPredicateIRI, value).map(getById(theClass, _)).filter(_.isPresent).map(_.get()).asJava
           case None => throw new Exception("Field " + fieldName + " not found in type " + theClass)
         }
       case None => new util.ArrayList[T]()
+    }
+  }
+
+  private def doGetByField[T](theType: String, fullPredicateIRI: String, value: String): List[String] = {
+    val model = getModel
+    val sparql = loadFromResources("getSubjectsByField.sparql")
+      .replaceFirst("\\$type", theType)
+      .replaceFirst("\\$fieldIRI", fullPredicateIRI)
+      .replaceFirst("\\$value", getValueForSparqlQuery(value))
+    val query = QueryFactory.create(sparql)
+    val queryExecution = QueryExecutionFactory.create(query, model)
+    val resultSet = queryExecution.execSelect()
+    val subjects = mutable.ListBuffer[String]()
+    while(resultSet.hasNext) {
+      val result = resultSet.next()
+      val subjectURI = result.getResource("subject").getURI
+      val namespace = model.getNsPrefixMap.asScala
+        .find(p => subjectURI.startsWith(p._2)).head._2
+      subjects.append(subjectURI.replaceFirst(namespace, ""))
+    }
+    subjects.toList
+  }
+
+  def getByField[T](theClass: Class[T], fieldName: String, value: String, rdfFormat: String): String = {
+    val rdfType = getRDFType(theClass)
+    rdfType match {
+      case Some(theType) =>
+        getFullIRIForFieldName(theClass, fieldName) match {
+          case Some(fullPredicateIRI) =>
+            val results = doGetByField(theType, fullPredicateIRI, value).map(getById(theClass, _, rdfFormat))
+            val model = ModelFactory.createDefaultModel()
+            model.setNsPrefixes(getModel.getNsPrefixMap)
+            results.foreach(r => RDFDataMgr.read(model, new ByteArrayInputStream(r.getBytes), RDFLanguages.TURTLE))
+            val outputStream = new ByteArrayOutputStream()
+            val lang = RDFLanguages.nameToLang(rdfFormat)
+            RDFDataMgr.write(outputStream, model, lang)
+            outputStream.toString
+          case None => throw new Exception("Field " + fieldName + " not found in type " + theClass)
+        }
+      case None => ""
     }
   }
 
@@ -155,7 +201,8 @@ class DataAccess(fileNameForGeneratedContent: String,
     }).map(_._2 + capitalizedFieldName)
   }
 
-  private def populateObjects[T](groupedBySubjectResults: Map[String, List[(String, String)]], theClass: Class[T], model: Model): List[T] = {
+  private def populateObjects[T](groupedBySubjectResults: Map[String, List[(String, String)]], theClass: Class[T]): List[T] = {
+    val model = getModel
     val prefixedNameConverterFunc = convertPrefixedName(nsPrefixes)_
     val prefixedValueConverterFunc = convertPrefixedNameToValue(nsPrefixes)_
     val results = for(key <- groupedBySubjectResults.keys) yield {
@@ -238,6 +285,26 @@ class DataAccess(fileNameForGeneratedContent: String,
       case Failure(_) => iri
     }
     new IRIValue(iri, namespace, localPart)
+  }
+
+  private def generateRDF[T](groupedBySubjectResults: Map[String, List[(String, String)]], rdfFormat: String): String = {
+    //new model and add prefixes
+    val inputModel = getModel
+    val modelToReturn = ModelFactory.createDefaultModel()
+    modelToReturn.setNsPrefixes(inputModel.getNsPrefixMap)
+    //generate new triple for each triple in the map
+    groupedBySubjectResults.foreach({ case (subject, predicateObjects) => predicateObjects.foreach({
+      case (predicate, theObject) =>
+        inputModel.getResource(subject).listProperties(ResourceFactory.createProperty(predicate)).asScala.filter(s => {
+          if(s.getObject.isLiteral) s.getObject.asLiteral().getString == theObject
+          else s.getObject.asResource().getURI == theObject
+        }).foreach(modelToReturn.add)
+    }) })
+    //serialize in the appropriate format
+    val outputStream = new ByteArrayOutputStream()
+    val langValue = RDFLanguages.nameToLang(rdfFormat)
+    RDFDataMgr.write(outputStream, modelToReturn, langValue)
+    outputStream.toString
   }
 
 }

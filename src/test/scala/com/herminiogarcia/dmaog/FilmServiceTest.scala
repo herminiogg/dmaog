@@ -73,12 +73,18 @@ class FilmServiceTest extends AnyFunSuite with BeforeAndAfter with ClassGenerato
   test("Data access methods are correctly generated") {
     val content = loadClass("FilmService")
     val getAll = "public List<Film> getAll\\(\\)[ \r\n]*[{][ \r\n]*return dataAccess.getAll[(]Film.class[)];[ \r\n]*[}]".r
+    val getAllRDF = "public String getAll\\(String rdfFormat\\)[ \r\n]*[{][ \r\n]*return dataAccess.getAll[(]Film.class, rdfFormat[)];[ \r\n]*[}]".r
     val getById = "public Optional<Film> getById[(]String id[)][ \r\n]*[{][ \r\n]*return dataAccess.getById[(]Film\\.class, id[)];[ \r\n]*[}]".r
+    val getByIdRDF = "public String getById[(]String id, String rdfFormat[)][ \r\n]*[{][ \r\n]*return dataAccess.getById[(]Film\\.class, id, rdfFormat[)];[ \r\n]*[}]".r
     val getByField = "public List<Film> getByField[(]String fieldName, String value[)][ \r\n]*[{][ \r\n]*return dataAccess.getByField[(]Film\\.class, fieldName, value[)];[ \r\n]*[}]".r
+    val getByFieldRDF = "public String getByField[(]String fieldName, String value, String rdfFormat[)][ \r\n]*[{][ \r\n]*return dataAccess.getByField[(]Film\\.class, fieldName, value, rdfFormat[)];[ \r\n]*[}]".r
 
     assert(getAll.findFirstIn(content).isDefined)
     assert(getById.findFirstIn(content).isDefined)
     assert(getByField.findFirstIn(content).isDefined)
+    assert(getAllRDF.findFirstIn(content).isDefined)
+    assert(getByIdRDF.findFirstIn(content).isDefined)
+    assert(getByFieldRDF.findFirstIn(content).isDefined)
   }
 
 }

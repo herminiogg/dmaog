@@ -16,12 +16,24 @@ public class $className {
         return dataAccess.getAll($type.class);
     }
 
+    public String getAll(String rdfFormat) {
+        return dataAccess.getAll($type.class, rdfFormat);
+    }
+
     public Optional<$type> getById(String id) {
         return dataAccess.getById($type.class, id);
     }
 
+    public String getById(String id, String rdfFormat) {
+        return dataAccess.getById($type.class, id, rdfFormat);
+    }
+
     public List<$type> getByField(String fieldName, String value) {
         return dataAccess.getByField($type.class, fieldName, value);
+    }
+
+    public String getByField(String fieldName, String value, String rdfFormat) {
+        return dataAccess.getByField($type.class, fieldName, value, rdfFormat);
     }
 
 }
