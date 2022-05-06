@@ -33,6 +33,7 @@ trait ModelLoader extends MappingRulesRunner {
   }
 
   private def loadExistingModel(pathToRDF: String): Model = synchronized {
+    org.apache.jena.query.ARQ.init()
     RDFDataMgr.loadModel(pathToRDF)
   }
 
