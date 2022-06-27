@@ -19,9 +19,14 @@ class DataAccess(fileNameForGeneratedContent: String,
                  reloadMinutes: java.lang.Long = null,
                  username: String = null,
                  password: String = null,
-                 drivers: String = "") extends ResourceLoader with ModelLoader with PrefixedNameConverter {
+                 drivers: String = "",
+                 sparqlEndpoint: String = "",
+                 prefixes: java.util.Map[String, String]) extends ResourceLoader with ModelLoader with PrefixedNameConverter {
 
-  private val nsPrefixes: Map[String, String] = getModel.getNsPrefixMap.asScala.toMap
+  private val nsPrefixes: Map[String, String] = {
+    val model = getModel
+    if(model.getNsPrefixMap.isEmpty) prefixes.asScala.toMap else model.getNsPrefixMap.asScala.toMap
+  }
 
   def getAll[T](theClass: Class[T]): util.List[T] = {
     getRDFType(theClass).map(t => {
@@ -180,7 +185,7 @@ class DataAccess(fileNameForGeneratedContent: String,
 
   private def getModel = {
     loadModel(fileNameForGeneratedContent, Option(mappingRules), Option(mappingLanguage),
-      Option(reloadMinutes), Option(username), Option(password), Option(drivers))
+      Option(reloadMinutes), Option(username), Option(password), Option(drivers), Option(sparqlEndpoint))
   }
 
   private def getFullIRIForFieldName[T](theClass: Class[T], fieldName: String) = {

@@ -16,7 +16,7 @@ object Main {
 
 }
 
-@Command(name = "dmaog", version = Array("v0.1.0"),
+@Command(name = "dmaog", version = Array("v0.1.1"),
   mixinStandardHelpOptions = true,
   description = Array("Generate data access objects and services from your mapping rules."))
 class Main extends Callable[Int] {
@@ -29,6 +29,9 @@ class Main extends Callable[Int] {
 
   @Option(names = Array("-o", "--output"), required = true, description = Array("Path where to generate the output files"))
   private var outputPath: String = ""
+
+  @Option(names = Array("-se", "--sparqlEndpoint"), description = Array("URL pointing to the SPARQL endpoint"))
+  private var sparqlEndpoint: String = null
 
   @Option(names = Array("-p", "--package"), required = true, description = Array("Package information for the generated files"))
   private var packageName: String = ""
@@ -47,7 +50,7 @@ class Main extends Callable[Int] {
     try {
       val fileContent = fileHandler.mkString
       new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName,
-        scala.Option(username), scala.Option(password), scala.Option(drivers)).generate()
+        scala.Option(username), scala.Option(password), scala.Option(drivers), scala.Option(sparqlEndpoint)).generate()
       1 // well finished
     } finally { fileHandler.close() }
   }

@@ -1,13 +1,14 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
-import com.herminiogarcia.dmaog.common.MappingRulesRunner
-import com.herminiogarcia.dmaog.common.{DataTypedPredicate, ModelLoader, PrefixedNameConverter, ResourceLoader}
+import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, ResourceLoader, Util}
 import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, ResultSet}
-import org.apache.jena.rdf.model.{Model, Resource}
+import org.apache.jena.rdf.model.{Model, ModelFactory, Resource, Statement}
+import org.apache.jena.riot.RDFDataMgr
+import org.apache.jena.update.{UpdateExecutionFactory, UpdateFactory}
 
-import java.io.{File, PrintWriter}
+import java.io.ByteArrayInputStream
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -15,12 +16,15 @@ import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerate: String, packageName: String,
-                   username: Option[String], password: Option[String], drivers: Option[String]) extends ResourceLoader
+                   username: Option[String], password: Option[String], drivers: Option[String],
+                    sparqlEndpoint: Option[String]) extends ResourceLoader
         with ModelLoader with PrefixedNameConverter with MappingRulesRunner {
+
+  val namespaces: mutable.Map[String, String] = mutable.HashMap[String, String]()
 
   def generate(): Unit = {
     val pathToRDF = generateData()
-    val model = loadModel(pathToRDF, None, null, None, username, password, drivers)
+    val model = loadModel(pathToRDF, None, null, None, username, password, drivers, sparqlEndpoint)
     val types = getTypes(model)
     val attributesPerType = getAttributesPerType(types, model)
     generateClasses(attributesPerType)
@@ -30,8 +34,10 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
   private def generateData(): String = {
     val rdfResult = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
     val result = Await.result(rdfResult, Duration.Inf)
-    writeFile("data.ttl", result)
-    pathToGenerate + "/" + "data.ttl"
+    val temporalModel = ModelFactory.createDefaultModel()
+    temporalModel.read(new ByteArrayInputStream(result.getBytes), null, "TTL")
+    temporalModel.getNsPrefixMap.forEach { case (k, v) => namespaces += (k -> v) }
+    WriterFactory.getWriter(pathToGenerate, sparqlEndpoint).write(result)
   }
 
   private def getTypes(model: Model): List[String] = {
@@ -48,7 +54,7 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
     val resultSet = doSparqlQuery(model, loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType))
     val result = resultSet.next()
     val uri = result.get("subject").asResource().getURI
-    model.getNsPrefixMap.asScala.find(p => uri.startsWith(p._2)).head._2
+    getPrefixes(model).find(p => uri.startsWith(p._2)).head._2
   }
 
   private def getAttributesPerType(types: List[String], model: Model): Map[String, List[DataTypedPredicate]] = {
@@ -105,8 +111,8 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
   private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]]): Unit = {
     val rdfsType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
     val finalPath = if(pathToGenerate.endsWith("/")) pathToGenerate + "data.ttl" else pathToGenerate + "/" + "data.ttl"
-    val model = loadModel(finalPath, None, None, None, username, password, drivers)
-    val prefixes = model.getNsPrefixMap.asScala.toMap
+    val model = loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
+    val prefixes = getPrefixes(model)
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {
       val capitalizedClassName = convertPrefixedNameFunction(t).capitalize
@@ -123,19 +129,23 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
         .replaceAll("\\$attributes", attributesDeclaration)
         .replaceAll("\\$getters", getters)
         .replaceAll("\\$setters", setters)
-      writeFile(capitalizedClassName + ".java", classCode)
+      Util.writeFile(pathToGenerate, capitalizedClassName + ".java", classCode)
       // Service class
       val serviceTemplate = loadFromResources("javaServiceClassGeneric.java")
       val serviceCode = serviceTemplate.replaceAll("\\$package", packageName)
         .replaceAll("\\$className", capitalizedClassName + "Service")
         .replaceAll("\\$type", capitalizedClassName)
-      writeFile(capitalizedClassName + "Service.java", serviceCode)
+      Util.writeFile(pathToGenerate, capitalizedClassName + "Service.java", serviceCode)
     })
+    val pathToDataFile = if(sparqlEndpoint.isEmpty) finalPath else ""
+    val prefixesInMap = namespaces.map { case (k, v) => "put(\"" + k + "\",\"" + v + "\");" }.mkString("\n\t\t")
     val singletonCode = loadFromResources("javaDataAccessSingleton.java")
       .replaceFirst("\\$package", packageName)
       .replaceFirst("\\$drivers", drivers.getOrElse(""))
-      .replaceFirst("\\$pathToData", finalPath)
-    writeFile("DataAccessSingleton.java", singletonCode)
+      .replaceFirst("\\$pathToData", pathToDataFile)
+      .replaceFirst("\\$sparqlEndpoint", sparqlEndpoint.map('"' + _ + '"').getOrElse("null"))
+      .replaceFirst("\\$prefixes", prefixesInMap)
+    Util.writeFile(pathToGenerate, "DataAccessSingleton.java", singletonCode)
 
   }
 
@@ -149,12 +159,6 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
       .replaceAll("\\$attributeName", prefixedNameConverterFunc(attributeName))
       .replaceFirst("\\$type", dataType)
       .replaceFirst("\\$className", theType)  // only for the setters
-  }
-
-  private def writeFile(filename: String, content: String): Unit = {
-    val file = new PrintWriter(new File(pathToGenerate + "/" + filename))
-    file.write(content)
-    file.close()
   }
 
   private def convertToJavaDataType(datatype: RDFDatatype): String = datatype match {
@@ -173,5 +177,70 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
     case XSDDatatype.XSDstring => "String"
     case XSDDatatype.XSDboolean => "Boolean"
     case _ => throw new Exception("Impossible to convert the type " + datatype.getURI + " to a Java type")
+  }
+
+  private def getPrefixes(model: Model): Map[String, String] = {
+    if(model.getNsPrefixMap.isEmpty) namespaces.toMap
+    else model.getNsPrefixMap.asScala.toMap
+  }
+}
+
+object WriterFactory {
+  def getWriter(pathToGenerate: String, sparqlEndpoint: Option[String]): Writer = sparqlEndpoint match {
+    case Some(endpoint) => DataSparqlEndpointWriter(endpoint)
+    case None => DataLocalFileWriter(pathToGenerate)
+  }
+}
+
+sealed trait Writer {
+  val pathToGenerate: String
+
+  def write(result: String): String
+}
+
+case class DataLocalFileWriter(override val pathToGenerate: String) extends Writer {
+  def write(result: String): String = {
+    Util.writeFile(pathToGenerate, "data.ttl", result)
+    pathToGenerate + "/" + "data.ttl"
+  }
+}
+
+case class DataSparqlEndpointWriter(override val pathToGenerate: String) extends Writer with ResourceLoader with ModelLoader {
+  def write(result: String): String = {
+    val model = parseRDFData(result)
+    val statements = model.listStatements()
+    val prefixes = model.getNsPrefixMap.asScala.toMap
+    val sparql = convertTriplesToSPARQL(statements.asScala.toList, prefixes)
+    runInsertSPARQL(sparql)
+    pathToGenerate
+  }
+
+  private def convertTriplesToSPARQL(triples: List[Statement], prefixes: Map[String, String]): String = {
+    val template = loadFromResources("insertData.sparql")
+
+    val formattedTriples = triples.map(t => {
+      convertURIToPrefixedValue(t.getSubject.getURI, prefixes) + " " +
+      convertURIToPrefixedValue(t.getPredicate.getURI, prefixes) + " " + {
+        if (t.getObject.isLiteral) "\"" + t.getLiteral.getString + "\"" +"^^<" + t.getLiteral.getDatatype.getURI + ">"
+        else convertURIToPrefixedValue(t.getObject.asResource().getURI, prefixes) + " "
+      } + " ."
+    }).mkString("\n")
+
+    val formattedPrefixes = prefixes.map { case(k, v) => {
+      "PREFIX " + k + ":" + " <" + v + ">"
+    }}.mkString("\n")
+
+    template.replaceFirst("\\$triples", formattedTriples).replaceFirst("\\$prefixes", formattedPrefixes)
+  }
+
+  private def runInsertSPARQL(sparql: String) = {
+    val request = UpdateFactory.create(sparql)
+    UpdateExecutionFactory.createRemote(request, pathToGenerate).execute()
+  }
+
+  private def convertURIToPrefixedValue(uri: String, prefixes: Map[String, String]): String = {
+    prefixes.find { case (_, v) => v.equals(uri) }
+      .map { case (k, v) => k + ":" + uri.replaceFirst(v, "")}
+      .getOrElse("<" + uri + ">")
   }
 }
