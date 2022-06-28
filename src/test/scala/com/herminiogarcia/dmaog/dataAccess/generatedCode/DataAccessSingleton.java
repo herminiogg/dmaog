@@ -2,6 +2,9 @@ package com.herminiogarcia.dmaog.dataAccess.generatedCode;
 
 import com.herminiogarcia.dmaog.dataAccess.DataAccess;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class DataAccessSingleton {
 
     private static DataAccess dataAccess;
@@ -12,10 +15,13 @@ public class DataAccessSingleton {
     private static String username;
     private static String password;
     private static String drivers = "";
+    private static String sparqlEndpoint;
+    private static Map<String, String> prefixes = new HashMap<String, String>();
 
     public static DataAccess getInstance() {
         if(dataAccess == null) {
-            dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes, username, password, drivers);
+            dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes,
+                    username, password, drivers, sparqlEndpoint, prefixes);
         }
         return dataAccess;
     }

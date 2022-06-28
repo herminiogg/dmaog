@@ -11,7 +11,7 @@ trait ClassGenerator {
   def generateClasses(): Unit = {
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(rules, "shexml", "./tmp/", "com.example",
-      None, None, None).generate()
+      None, None, None, None).generate()
   }
 
   def loadClass(entityName: String): String = {
