@@ -15,6 +15,6 @@ jobs:
           java-version: '8'
           distribution: 'adopt'
       - name: Set up Fuseki
-        run: docker run --rm -p 3030:3030 atomgraph/fuseki --mem /example
+        run: docker run --rm -d -p 3030:3030 atomgraph/fuseki --mem /example
       - name: Run tests
         run: sbt test
