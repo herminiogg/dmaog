@@ -17,6 +17,8 @@ jobs:
       - name: Set up Fuseki
         uses: addnab/docker-run-action@v3
         with:
-          run: sudo docker run --rm -p 3030:3030 atomgraph/fuseki --mem /example
+          image: atomgraph/fuseki
+          run: -p 3030:3030
+          options: --mem /example
       - name: Run tests
         run: sbt test
