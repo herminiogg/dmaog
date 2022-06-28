@@ -16,8 +16,6 @@ jobs:
           distribution: 'adopt'
       - name: Set up Fuseki
         uses: addnab/docker-run-action@v3
-        with:
-          image: atomgraph/fuseki
-          options: -p 3030:3030 --mem /example
+        run: sudo docker run --rm -p 3030:3030 atomgraph/fuseki --mem /example
       - name: Run tests
         run: sbt test
