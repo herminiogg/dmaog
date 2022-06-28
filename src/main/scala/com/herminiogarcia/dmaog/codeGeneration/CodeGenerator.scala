@@ -15,7 +15,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
-class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerate: String, packageName: String,
+class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathToGenerate: String, packageName: String,
                    username: Option[String], password: Option[String], drivers: Option[String],
                     sparqlEndpoint: Option[String]) extends ResourceLoader
         with ModelLoader with PrefixedNameConverter with MappingRulesRunner {
@@ -31,13 +31,15 @@ class CodeGenerator(mappingRules: String, mappingLanguage: String, pathToGenerat
   }
 
 
-  private def generateData(): String = {
-    val rdfResult = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
-    val result = Await.result(rdfResult, Duration.Inf)
-    val temporalModel = ModelFactory.createDefaultModel()
-    temporalModel.read(new ByteArrayInputStream(result.getBytes), null, "TTL")
-    temporalModel.getNsPrefixMap.forEach { case (k, v) => namespaces += (k -> v) }
-    WriterFactory.getWriter(pathToGenerate, sparqlEndpoint).write(result)
+  private def generateData(): String = mappingRules match {
+    case Some(rules) =>
+      val rdfResult = generateDataByMappingLanguage(rules, mappingLanguage, username, password, drivers)
+      val result = Await.result(rdfResult, Duration.Inf)
+      val temporalModel = ModelFactory.createDefaultModel()
+      temporalModel.read(new ByteArrayInputStream(result.getBytes), null, "TTL")
+      temporalModel.getNsPrefixMap.forEach { case (k, v) => namespaces += (k -> v) }
+      WriterFactory.getWriter(pathToGenerate, sparqlEndpoint).write(result)
+    case None => sparqlEndpoint.getOrElse(pathToGenerate + "/data.ttl")
   }
 
   private def getTypes(model: Model): List[String] = {

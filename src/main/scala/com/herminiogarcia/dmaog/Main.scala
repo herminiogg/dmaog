@@ -21,7 +21,7 @@ object Main {
   description = Array("Generate data access objects and services from your mapping rules."))
 class Main extends Callable[Int] {
 
-  @Option(names = Array("-m", "--mapping"), required = true, description = Array("Path to the file with the mappings"))
+  @Option(names = Array("-m", "--mapping"), description = Array("Path to the file with the mappings"))
   private var mappingRules: String = ""
 
   @Option(names = Array("-ml", "--mappingLanguage"), description = Array("Mapping language to use: ShExML or RML"))
@@ -46,12 +46,12 @@ class Main extends Callable[Int] {
   private var drivers: String = null
 
   override def call(): Int = {
-    val fileHandler = scala.io.Source.fromFile(mappingRules)
+    val fileHandler = if(mappingRules.nonEmpty) scala.Option(scala.io.Source.fromFile(mappingRules)) else scala.Option.empty
+    val fileContent = fileHandler.map(_.mkString)
     try {
-      val fileContent = fileHandler.mkString
       new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName,
         scala.Option(username), scala.Option(password), scala.Option(drivers), scala.Option(sparqlEndpoint)).generate()
       1 // well finished
-    } finally { fileHandler.close() }
+    } finally { fileHandler.foreach(_.close()) }
   }
 }

@@ -10,7 +10,7 @@ trait ClassGenerator {
 
   def generateClasses(): Unit = {
     new File("./tmp").mkdir() //create temp directory for tests
-    new CodeGenerator(rules, "shexml", "./tmp/", "com.example",
+    new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
       None, None, None, None).generate()
   }
 
