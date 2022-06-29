@@ -1,11 +1,14 @@
 package com.herminiogarcia.dmaog.dataAccess
 
-import com.herminiogarcia.dmaog.common.{IRIValue, ModelLoader, PrefixedNameConverter, ResourceLoader}
-import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet}
+import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, PrefixedNameConverter, ResourceLoader}
+import org.apache.jena.datatypes.xsd.XSDDatatype
+import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
 import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
+import org.apache.jena.update.{Update, UpdateExecutionFactory, UpdateFactory, UpdateProcessor, UpdateRequest}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.lang.Integer
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import java.util.Optional
@@ -170,6 +173,76 @@ class DataAccess(fileNameForGeneratedContent: String,
         }
       case None => ""
     }
+  }
+
+  def insert[T](instance: T): Unit = {
+    updateExecution(instance, "insertData.sparql")
+  }
+
+  def delete[T](instance: T): Unit = {
+    updateExecution(instance, "deleteData.sparql")
+  }
+
+  private def updateExecution[T](instance: T, queryFileTemplate: String): Unit = {
+    val dataset = DatasetFactory.create(getModel)
+    val triples = createTriplesForSparqlUpdate(instance)
+    val sparql = loadFromResources(queryFileTemplate)
+      .replaceFirst("\\$prefixes", "")
+      .replaceFirst("\\$triples", triples)
+    val updateQuery = UpdateFactory.create(sparql)
+    createUpdateProcessor(updateQuery, dataset).execute()
+    writeModelIfNotSparqlEndpoint(dataset.getDefaultModel)
+  }
+
+  private def createUpdateProcessor(updateQuery: UpdateRequest, dataset: Dataset): UpdateProcessor = {
+    if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) {
+      UpdateExecutionFactory.create(updateQuery, dataset)
+    } else UpdateExecutionFactory.createRemote(updateQuery, sparqlEndpoint)
+  }
+
+  private def writeModelIfNotSparqlEndpoint(model: Model): Unit = {
+    if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) {
+      val outputStream = new ByteArrayOutputStream()
+      model.write(outputStream, "Turtle")
+      DataLocalFileWriter(fileNameForGeneratedContent.replaceFirst("/data.ttl", "")).write(outputStream.toString)
+      System.out.println("WARN: Updating on local disk is not meant for production environments and should be used only for testing purposes")
+    }
+  }
+
+  private def createTriplesForSparqlUpdate[T](instance: T): String = {
+    val methods = instance.getClass.getMethods.toList
+
+    val typeURI = instance.getClass.getField("rdfType").get(instance).asInstanceOf[String]
+    val subjectURI = methods.find(_.getName == "getId").get.invoke(instance).asInstanceOf[IRIValue].iri
+
+    val triples = methods.filterNot(_.getName.equals("getClass"))
+        .filter(m => "get.*".r.findPrefixOf(m.getName).isDefined).map(m => {
+      val fieldURI = getFullIRIForFieldName(instance.getClass, m.getName)
+      val value = m.invoke(instance)
+      val values =
+        if(value.isInstanceOf[java.util.List[AnyRef]]) value.asInstanceOf[java.util.List[AnyRef]].asScala
+        else List(value)
+      values.map(v => {
+        val objectTriple =
+          if(v.isInstanceOf[IRIValue]) "<" + v.asInstanceOf[IRIValue].iri + ">"
+          else {
+            "\"" + v.toString + "\"" +"^^<" + getXSDType(v).getURI + ">"
+          }
+        fieldURI.map(f => "<" + subjectURI + "> <" + f + "> " + objectTriple).getOrElse("")
+      }).mkString(" .\n")
+    }).mkString(" .\n")
+
+    "<" + subjectURI + "> a <" + typeURI + "> .\n" + triples
+  }
+
+  private def getXSDType(value: AnyRef): XSDDatatype = {
+    if(value.isInstanceOf[Integer]) XSDDatatype.XSDinteger
+    else if(value.isInstanceOf[java.lang.Long]) XSDDatatype.XSDlong
+    else if(value.isInstanceOf[java.lang.Float]) XSDDatatype.XSDfloat
+    else if(value.isInstanceOf[java.lang.Double]) XSDDatatype.XSDdouble
+    else if(value.isInstanceOf[java.lang.Boolean]) XSDDatatype.XSDboolean
+    else if(value.isInstanceOf[String]) XSDDatatype.XSDstring
+    else throw new Exception("Impossible to convert type " + value + " to an XSDDatatype")
   }
 
   private def getValueForSparqlQuery(value: String): String = {

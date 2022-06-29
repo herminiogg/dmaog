@@ -36,4 +36,13 @@ public class $className {
         return dataAccess.getByField($type.class, fieldName, value, rdfFormat);
     }
 
+    public void commit($type instance) {
+        dataAccess.delete(instance);
+        dataAccess.insert(instance);
+    }
+
+    public void delete($type instance) {
+        dataAccess.delete(instance);
+    }
+
 }

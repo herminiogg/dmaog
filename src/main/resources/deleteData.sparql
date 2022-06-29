@@ -1,0 +1,5 @@
+$prefixes
+
+DELETE DATA {
+  $triples
+}
