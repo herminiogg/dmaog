@@ -1,9 +1,11 @@
 package com.herminiogarcia.dmaog.dataAccess
 
-import com.herminiogarcia.dmaog.common.{IRIValue, ModelLoader, PrefixedNameConverter, ResourceLoader}
-import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet}
+import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, PrefixedNameConverter, ResourceLoader}
+import org.apache.jena.datatypes.xsd.XSDDatatype
+import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
 import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
+import org.apache.jena.update.{Update, UpdateExecutionFactory, UpdateFactory, UpdateProcessor, UpdateRequest}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
@@ -145,8 +147,7 @@ class DataAccess(fileNameForGeneratedContent: String,
     while(resultSet.hasNext) {
       val result = resultSet.next()
       val subjectURI = result.getResource("subject").getURI
-      val namespace = model.getNsPrefixMap.asScala
-        .find(p => subjectURI.startsWith(p._2)).head._2
+      val namespace = nsPrefixes.find(p => subjectURI.startsWith(p._2)).head._2
       subjects.append(subjectURI.replaceFirst(namespace, ""))
     }
     subjects.toList
@@ -170,6 +171,99 @@ class DataAccess(fileNameForGeneratedContent: String,
         }
       case None => ""
     }
+  }
+
+  def insert[T](instance: T): Unit = {
+    val triples = createTriplesForSparqlUpdate(instance, true)
+    val sparql = loadFromResources("insertData.sparql")
+      .replaceFirst("\\$prefixes", "")
+      .replaceFirst("\\$triples", triples)
+    updateExecution(instance, sparql)
+  }
+
+  def delete[T](instance: T): Unit = {
+    val triples = createTriplesForSparqlUpdate(instance, false)
+    val sparql = loadFromResources("deleteData.sparql")
+      .replaceFirst("\\$prefixes", "")
+      .replaceAll("\\$triples", triples)
+      .replaceFirst("\\$value", "<" + getIdValue(instance) + ">")
+    updateExecution(instance, sparql)
+
+  }
+
+  private def updateExecution[T](instance: T, sparql: String): Unit = {
+    val dataset = DatasetFactory.create(getModel)
+    val updateQuery = UpdateFactory.create(sparql)
+    createUpdateProcessor(updateQuery, dataset).execute()
+    writeModelIfNotSparqlEndpoint(dataset.getDefaultModel)
+  }
+
+  private def createUpdateProcessor(updateQuery: UpdateRequest, dataset: Dataset): UpdateProcessor = {
+    if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) {
+      UpdateExecutionFactory.create(updateQuery, dataset)
+    } else UpdateExecutionFactory.createRemote(updateQuery, sparqlEndpoint)
+  }
+
+  private def writeModelIfNotSparqlEndpoint(model: Model): Unit = {
+    if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) {
+      val outputStream = new ByteArrayOutputStream()
+      model.write(outputStream, "Turtle")
+      DataLocalFileWriter(fileNameForGeneratedContent.replaceFirst("/data.ttl", "")).write(outputStream.toString)
+      System.out.println("WARN: Updating on local disk is not meant for production environments and should be used only for testing purposes")
+    }
+  }
+
+  private def createTriplesForSparqlUpdate[T](instance: T, isInsert: Boolean): String = {
+    val methods = instance.getClass.getMethods.toList
+
+    val typeURI = instance.getClass.getField("rdfType").get(instance).asInstanceOf[String]
+    val subjectURI = methods.find(_.getName == "getId").get.invoke(instance).asInstanceOf[IRIValue].iri
+
+    val triples = methods.filterNot(m => m.getName.equals("getClass") || m.getName.equals("getId"))
+        .filter(m => "get.*".r.findPrefixOf(m.getName).isDefined).flatMap(m => {
+      val fieldName = m.getName.replaceFirst("get", "")
+      val capitalizedFieldName = fieldName.head.toLower + fieldName.tail
+      val fieldURI = getFullIRIForFieldName(instance.getClass, capitalizedFieldName)
+      val value = m.invoke(instance)
+      val values =
+        if(value.isInstanceOf[java.util.List[AnyRef]]) value.asInstanceOf[java.util.List[AnyRef]].asScala
+        else List(value)
+      val values2 = values.map(v => {
+        val objectTriple = {
+          if(v.isInstanceOf[IRIValue]) Option("<" + v.asInstanceOf[IRIValue].iri + ">")
+          else if(v != null) Option("\"" + v.toString + "\"" +"^^<" + getXSDType(v).getURI + ">")
+          else Option.empty
+        }
+        objectTriple.flatMap(ot => fieldURI.map(f => {
+          val objectValueOrVariable = if(isInsert) ot else "?" + capitalizedFieldName
+          val subjectURIOrVariable = if(isInsert) "<" + subjectURI + ">" else "?id"
+          subjectURIOrVariable + " <" + f + "> " + objectValueOrVariable
+        }))
+      })
+      values2.map(_.map(_ + " .\n"))
+
+    }).filter(_.isDefined).map(_.get).mkString("")
+
+    val subjectURIOrVariable = if(isInsert) "<" + subjectURI + ">" else "?id"
+    subjectURIOrVariable + " a <" + typeURI + "> .\n" + triples
+  }
+
+  private def getIdValue[T](instance: T): String = {
+    val method = instance.getClass.getMethods.toList.find(_.getName.equals("getId"))
+    method.map(_.invoke(instance).asInstanceOf[IRIValue].iri) match {
+      case Some(value) => value
+      case None => throw new Exception("The class " + instance.getClass.getName + "does not have an id attribute. Try to regenerate the code!")
+    }
+  }
+
+  private def getXSDType(value: AnyRef): XSDDatatype = {
+    if(value.isInstanceOf[Integer]) XSDDatatype.XSDinteger
+    else if(value.isInstanceOf[java.lang.Long]) XSDDatatype.XSDlong
+    else if(value.isInstanceOf[java.lang.Float]) XSDDatatype.XSDfloat
+    else if(value.isInstanceOf[java.lang.Double]) XSDDatatype.XSDdouble
+    else if(value.isInstanceOf[java.lang.Boolean]) XSDDatatype.XSDboolean
+    else if(value.isInstanceOf[String]) XSDDatatype.XSDstring
+    else throw new Exception("Impossible to convert type " + value + " to an XSDDatatype")
   }
 
   private def getValueForSparqlQuery(value: String): String = {
@@ -282,7 +376,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   private def createIRIValue(iri: String, model: Model): IRIValue = {
-    val prefixes = model.getNsPrefixMap.asScala.toMap
+    val prefixes = nsPrefixes
     val prefixedValueConverterFunc = convertPrefixedNameToValue(prefixes)_
     val localPart = prefixedValueConverterFunc(iri)
     val namespace = Try(iri.replaceFirst(localPart, "")) match {
