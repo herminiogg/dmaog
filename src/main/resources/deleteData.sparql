@@ -1,5 +1,8 @@
 $prefixes
 
-DELETE DATA {
+DELETE {
   $triples
+} WHERE {
+  $triples
+  FILTER(?id = $value)
 }

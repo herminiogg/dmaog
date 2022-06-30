@@ -8,7 +8,6 @@ import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
 import org.apache.jena.update.{Update, UpdateExecutionFactory, UpdateFactory, UpdateProcessor, UpdateRequest}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
-import java.lang.Integer
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import java.util.Optional
@@ -148,8 +147,7 @@ class DataAccess(fileNameForGeneratedContent: String,
     while(resultSet.hasNext) {
       val result = resultSet.next()
       val subjectURI = result.getResource("subject").getURI
-      val namespace = model.getNsPrefixMap.asScala
-        .find(p => subjectURI.startsWith(p._2)).head._2
+      val namespace = nsPrefixes.find(p => subjectURI.startsWith(p._2)).head._2
       subjects.append(subjectURI.replaceFirst(namespace, ""))
     }
     subjects.toList
@@ -176,19 +174,25 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   def insert[T](instance: T): Unit = {
-    updateExecution(instance, "insertData.sparql")
+    val triples = createTriplesForSparqlUpdate(instance, true)
+    val sparql = loadFromResources("insertData.sparql")
+      .replaceFirst("\\$prefixes", "")
+      .replaceFirst("\\$triples", triples)
+    updateExecution(instance, sparql)
   }
 
   def delete[T](instance: T): Unit = {
-    updateExecution(instance, "deleteData.sparql")
+    val triples = createTriplesForSparqlUpdate(instance, false)
+    val sparql = loadFromResources("deleteData.sparql")
+      .replaceFirst("\\$prefixes", "")
+      .replaceAll("\\$triples", triples)
+      .replaceFirst("\\$value", "<" + getIdValue(instance) + ">")
+    updateExecution(instance, sparql)
+
   }
 
-  private def updateExecution[T](instance: T, queryFileTemplate: String): Unit = {
+  private def updateExecution[T](instance: T, sparql: String): Unit = {
     val dataset = DatasetFactory.create(getModel)
-    val triples = createTriplesForSparqlUpdate(instance)
-    val sparql = loadFromResources(queryFileTemplate)
-      .replaceFirst("\\$prefixes", "")
-      .replaceFirst("\\$triples", triples)
     val updateQuery = UpdateFactory.create(sparql)
     createUpdateProcessor(updateQuery, dataset).execute()
     writeModelIfNotSparqlEndpoint(dataset.getDefaultModel)
@@ -209,30 +213,47 @@ class DataAccess(fileNameForGeneratedContent: String,
     }
   }
 
-  private def createTriplesForSparqlUpdate[T](instance: T): String = {
+  private def createTriplesForSparqlUpdate[T](instance: T, isInsert: Boolean): String = {
     val methods = instance.getClass.getMethods.toList
 
     val typeURI = instance.getClass.getField("rdfType").get(instance).asInstanceOf[String]
     val subjectURI = methods.find(_.getName == "getId").get.invoke(instance).asInstanceOf[IRIValue].iri
 
-    val triples = methods.filterNot(_.getName.equals("getClass"))
-        .filter(m => "get.*".r.findPrefixOf(m.getName).isDefined).map(m => {
-      val fieldURI = getFullIRIForFieldName(instance.getClass, m.getName)
+    val triples = methods.filterNot(m => m.getName.equals("getClass") || m.getName.equals("getId"))
+        .filter(m => "get.*".r.findPrefixOf(m.getName).isDefined).flatMap(m => {
+      val fieldName = m.getName.replaceFirst("get", "")
+      val capitalizedFieldName = fieldName.head.toLower + fieldName.tail
+      val fieldURI = getFullIRIForFieldName(instance.getClass, capitalizedFieldName)
       val value = m.invoke(instance)
       val values =
         if(value.isInstanceOf[java.util.List[AnyRef]]) value.asInstanceOf[java.util.List[AnyRef]].asScala
         else List(value)
-      values.map(v => {
-        val objectTriple =
-          if(v.isInstanceOf[IRIValue]) "<" + v.asInstanceOf[IRIValue].iri + ">"
-          else {
-            "\"" + v.toString + "\"" +"^^<" + getXSDType(v).getURI + ">"
-          }
-        fieldURI.map(f => "<" + subjectURI + "> <" + f + "> " + objectTriple).getOrElse("")
-      }).mkString(" .\n")
-    }).mkString(" .\n")
+      val values2 = values.map(v => {
+        val objectTriple = {
+          if(v.isInstanceOf[IRIValue]) Option("<" + v.asInstanceOf[IRIValue].iri + ">")
+          else if(v != null) Option("\"" + v.toString + "\"" +"^^<" + getXSDType(v).getURI + ">")
+          else Option.empty
+        }
+        objectTriple.flatMap(ot => fieldURI.map(f => {
+          val objectValueOrVariable = if(isInsert) ot else "?" + capitalizedFieldName
+          val subjectURIOrVariable = if(isInsert) "<" + subjectURI + ">" else "?id"
+          subjectURIOrVariable + " <" + f + "> " + objectValueOrVariable
+        }))
+      })
+      values2.map(_.map(_ + " .\n"))
 
-    "<" + subjectURI + "> a <" + typeURI + "> .\n" + triples
+    }).filter(_.isDefined).map(_.get).mkString("")
+
+    val subjectURIOrVariable = if(isInsert) "<" + subjectURI + ">" else "?id"
+    subjectURIOrVariable + " a <" + typeURI + "> .\n" + triples
+  }
+
+  private def getIdValue[T](instance: T): String = {
+    val method = instance.getClass.getMethods.toList.find(_.getName.equals("getId"))
+    method.map(_.invoke(instance).asInstanceOf[IRIValue].iri) match {
+      case Some(value) => value
+      case None => throw new Exception("The class " + instance.getClass.getName + "does not have an id attribute. Try to regenerate the code!")
+    }
   }
 
   private def getXSDType(value: AnyRef): XSDDatatype = {
@@ -355,7 +376,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   private def createIRIValue(iri: String, model: Model): IRIValue = {
-    val prefixes = model.getNsPrefixMap.asScala.toMap
+    val prefixes = nsPrefixes
     val prefixedValueConverterFunc = convertPrefixedNameToValue(prefixes)_
     val localPart = prefixedValueConverterFunc(iri)
     val namespace = Try(iri.replaceFirst(localPart, "")) match {

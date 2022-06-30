@@ -1,13 +1,14 @@
 package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.codeGeneration.CodeGenerator
-import com.herminiogarcia.dmaog.dataAccess.generatedCodeSparql.FilmService
+import com.herminiogarcia.dmaog.dataAccess.generatedCodeUpdateLocalFile.FilmService
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import java.io.File
 
-class SparqlPersistanceAndDataAccessTest extends AnyFunSuite with BeforeAndAfter {
+import java.io.File
+import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+
+class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
 
   val rules =
     """
@@ -51,19 +52,24 @@ class SparqlPersistanceAndDataAccessTest extends AnyFunSuite with BeforeAndAfter
       |}
       |""".stripMargin
 
+  val filmService = new FilmService()
+
   before {
+    removeOldData()
     generateClasses()
+  }
+
+  def removeOldData(): Unit = {
+    filmService.getAll.forEach(filmService.delete(_))
   }
 
   def generateClasses(): Unit = {
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
-      None, None, None, Some("http://localhost:3030/example")).generate()
+      None, None, None, None).generate()
   }
 
-  val filmService = new FilmService()
-
-  test("getAll is returning all members") {
+  test("Updating a field works as expected") {
     val items = filmService.getAll
     assert(items.asScala.count(f => {
       f.getId.localName == "1" &&
@@ -99,74 +105,13 @@ class SparqlPersistanceAndDataAccessTest extends AnyFunSuite with BeforeAndAfter
         f.getSchemaMusicBy.localName == "David_Julyan" &&
         f.getSchemaName == "The Prestige"
     }) == 1)
-  }
 
-  test("getById is returning only the requested member") {
-    assert(filmService.getById("1").filter(f => {
-      f.getId.localName == "1" &&
-        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
-        f.getYear == 2017 &&
-        f.getSchemaCountryOfOrigin.localName == "USA" &&
-        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
-        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
-        f.getSchemaName == "Dunkirk"
-    }).isPresent)
-    assert(filmService.getById("2").filter(f => {
-      f.getId.localName == "2" &&
-        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
-        f.getYear == 2014 &&
-        f.getSchemaCountryOfOrigin.localName == "USA" &&
-        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
-        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
-        f.getSchemaName == "Interstellar"
-    }).isPresent)
-    assert(filmService.getById("3").filter(f => {
-      f.getId.localName == "3" &&
-        f.getYear == 2010 &&
-        f.getSchemaCountryOfOrigin.localName == "USA" &&
-        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
-        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
-        f.getSchemaName == "Inception"
-    }).isPresent)
-    assert(filmService.getById("4").filter(f => {
-      f.getId.localName == "4" &&
-        f.getYear == 2006 &&
-        f.getSchemaCountryOfOrigin.localName == "USA" &&
-        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
-        f.getSchemaMusicBy.localName == "David_Julyan" &&
-        f.getSchemaName == "The Prestige"
-    }).isPresent)
-  }
+    val film = filmService.getById("4").get()
+    film.setYear(2011)
+    filmService.commit(film)
+    val updatedItems = filmService.getAll
 
-  test("getByField is returning the concerning members") {
-    val items = filmService.getByField("schemaMusicBy", "http://dbpedia.org/resource/Hans_Zimmer")
-    assert(items.asScala.count(f => {
-      f.getId.localName == "1" &&
-        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
-        f.getYear == 2017 &&
-        f.getSchemaCountryOfOrigin.localName == "USA" &&
-        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
-        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
-        f.getSchemaName == "Dunkirk"
-    }) == 1)
-    assert(items.asScala.count(f => {
-      f.getId.localName == "2" &&
-        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
-        f.getYear == 2014 &&
-        f.getSchemaCountryOfOrigin.localName == "USA" &&
-        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
-        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
-        f.getSchemaName == "Interstellar"
-    }) == 1)
-    assert(items.asScala.count(f => {
-      f.getId.localName == "3" &&
-        f.getYear == 2010 &&
-        f.getSchemaCountryOfOrigin.localName == "USA" &&
-        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
-        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
-        f.getSchemaName == "Inception"
-    }) == 1)
-    assert(items.asScala.count(f => {
+    assert(updatedItems.asScala.count(f => {
       f.getId.localName == "4" &&
         f.getYear == 2006 &&
         f.getSchemaCountryOfOrigin.localName == "USA" &&
@@ -174,5 +119,91 @@ class SparqlPersistanceAndDataAccessTest extends AnyFunSuite with BeforeAndAfter
         f.getSchemaMusicBy.localName == "David_Julyan" &&
         f.getSchemaName == "The Prestige"
     }) == 0)
+
+    assert(updatedItems.asScala.count(f => {
+      f.getId.localName == "4" &&
+        f.getYear == 2011 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "David_Julyan" &&
+        f.getSchemaName == "The Prestige"
+    }) == 1)
+  }
+
+  test("Deleting an entity as expected") {
+    val items = filmService.getAll
+    assert(items.asScala.count(f => {
+      f.getId.localName == "1" &&
+        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
+        f.getYear == 2017 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Dunkirk"
+    }) == 1)
+    assert(items.asScala.count(f => {
+      f.getId.localName == "2" &&
+        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
+        f.getYear == 2014 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Interstellar"
+    }) == 1)
+    assert(items.asScala.count(f => {
+      f.getId.localName == "3" &&
+        f.getYear == 2010 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Inception"
+    }) == 1)
+    assert(items.asScala.count(f => {
+      f.getId.localName == "4" &&
+        f.getYear == 2006 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "David_Julyan" &&
+        f.getSchemaName == "The Prestige"
+    }) == 1)
+
+    val film = filmService.getById("1").get()
+    filmService.delete(film)
+    val updatedItems = filmService.getAll
+
+    assert(updatedItems.asScala.count(f => {
+      f.getId.localName == "1" &&
+        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
+        f.getYear == 2017 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Dunkirk"
+    }) == 0)
+    assert(updatedItems.asScala.count(f => {
+      f.getId.localName == "2" &&
+        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
+        f.getYear == 2014 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Interstellar"
+    }) == 1)
+    assert(updatedItems.asScala.count(f => {
+      f.getId.localName == "3" &&
+        f.getYear == 2010 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Inception"
+    }) == 1)
+    assert(updatedItems.asScala.count(f => {
+      f.getId.localName == "4" &&
+        f.getYear == 2006 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "David_Julyan" &&
+        f.getSchemaName == "The Prestige"
+    }) == 1)
   }
 }

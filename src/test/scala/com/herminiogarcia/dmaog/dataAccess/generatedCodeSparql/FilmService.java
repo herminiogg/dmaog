@@ -1,7 +1,6 @@
 package com.herminiogarcia.dmaog.dataAccess.generatedCodeSparql;
 
 import com.herminiogarcia.dmaog.dataAccess.DataAccess;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +34,15 @@ public class FilmService {
 
     public String getByField(String fieldName, String value, String rdfFormat) {
         return dataAccess.getByField(Film.class, fieldName, value, rdfFormat);
+    }
+
+    public void commit(Film instance) {
+        dataAccess.delete(instance);
+        dataAccess.insert(instance);
+    }
+
+    public void delete(Film instance) {
+        dataAccess.delete(instance);
     }
 
 }
