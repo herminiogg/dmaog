@@ -91,7 +91,9 @@ case class SparqlDataLoader(path: String) extends DataLoader with ResourceLoader
     val sparql = loadFromResources("getAllData.sparql")
     val query = QueryFactory.create(sparql)
     val queryExecution = QueryExecutionFactory.sparqlService(path, query)
-    queryExecution.execConstruct()
+    val model = queryExecution.execConstruct()
+    queryExecution.close()
+    model
   }
 }
 

@@ -2,7 +2,7 @@ package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, PrefixedNameConverter, ResourceLoader}
 import org.apache.jena.datatypes.xsd.XSDDatatype
-import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet}
+import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet, ResultSetFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
 import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
 import org.apache.jena.update.{Update, UpdateExecutionFactory, UpdateFactory, UpdateProcessor, UpdateRequest}
@@ -51,13 +51,34 @@ class DataAccess(fileNameForGeneratedContent: String,
     }).getOrElse("")
   }
 
+  def getAll[T](theClass: Class[T], limit: java.lang.Long, offset: java.lang.Long): util.List[T] = {
+    getRDFType(theClass).map(t => {
+      val sparql = loadFromResources("getAllSubjects.sparql")
+        .replaceFirst("\\$type", t)
+        .replaceFirst("\\$limit", limit.toString)
+        .replaceFirst("\\$offset", offset.toString)
+      def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
+      def getPredicate: QuerySolution => String = r => "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+      val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+      groupedBySubjectResults.keys
+        .map(k => getById(theClass, convertPrefixedNameToValue(nsPrefixes)(k)))
+        .filter(_.isPresent).map(_.get()).toList.asJava
+    }).getOrElse(new util.ArrayList[T]())
+  }
+
+  def count[T](theClass: Class[T]): java.lang.Long = {
+    getRDFType(theClass).map(t => {
+      val sparql = loadFromResources("countAll.sparql")
+        .replaceFirst("\\$type", t)
+      val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, () => getModel).execute()
+      new java.lang.Long(resultSet.next().getLiteral("count").getLong)
+    }).getOrElse(new java.lang.Long(0))
+  }
+
   private def getGroupedStatements(sparql: String,
                                    getSubjectFunction: QuerySolution => String,
                                    getPredicateFunction: QuerySolution => String): Map[String, List[(String, String)]] = {
-    val model = getModel
-    val query = QueryFactory.create(sparql)
-    val queryExecution = QueryExecutionFactory.create(query, model)
-    val resultSet = queryExecution.execSelect()
+    val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, () => getModel).execute()
     val groupedBySubjectResults = mutable.Map[String, List[(String, String)]]()
     while(resultSet.hasNext) {
       val result = resultSet.next()
@@ -65,9 +86,11 @@ class DataAccess(fileNameForGeneratedContent: String,
       val predicate = getPredicateFunction(result)
       val theObject = result.get("object")
       val predicateURI = predicate
-      val objectValue =
-        if(theObject.isLiteral) theObject.asLiteral().getString
+      val objectValue = {
+        if(theObject == null) ""
+        else if(theObject.isLiteral) theObject.asLiteral().getString
         else theObject.asResource().getURI
+      }
       groupedBySubjectResults.get(subject) match {
         case Some(value) =>
           val newList = value.+: (predicateURI, objectValue)
@@ -140,9 +163,7 @@ class DataAccess(fileNameForGeneratedContent: String,
       .replaceFirst("\\$type", theType)
       .replaceFirst("\\$fieldIRI", fullPredicateIRI)
       .replaceFirst("\\$value", getValueForSparqlQuery(value))
-    val query = QueryFactory.create(sparql)
-    val queryExecution = QueryExecutionFactory.create(query, model)
-    val resultSet = queryExecution.execSelect()
+    val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, () => getModel).execute()
     val subjects = mutable.ListBuffer[String]()
     while(resultSet.hasNext) {
       val result = resultSet.next()
@@ -405,5 +426,37 @@ class DataAccess(fileNameForGeneratedContent: String,
     RDFDataMgr.write(outputStream, modelToReturn, langValue)
     outputStream.toString
   }
+}
 
+object QueryExecutorFactory {
+  def getQueryExecutor(sparql: String, sparqlEndpoint: String, modelLoader: () => Model): QueryExecutor = {
+    if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) LocalFileQueryExecutor(modelLoader(), sparql)
+    else SparqlEndpointQueryExecutor(sparql, sparqlEndpoint)
+  }
+}
+
+sealed trait QueryExecutor {
+  val sparql: String
+
+  def execute(): ResultSet
+}
+
+case class LocalFileQueryExecutor(model: Model, sparql: String) extends QueryExecutor {
+  def execute(): ResultSet = {
+    val query = QueryFactory.create(sparql)
+    val queryExecution = QueryExecutionFactory.create(query, model)
+    val resultSet = ResultSetFactory.copyResults(queryExecution.execSelect())
+    queryExecution.close()
+    resultSet
+  }
+}
+
+case class SparqlEndpointQueryExecutor(sparql: String, endpoint: String) extends QueryExecutor {
+  def execute(): ResultSet = {
+    val query = QueryFactory.create(sparql)
+    val queryExecution = QueryExecutionFactory.sparqlService(endpoint, query)
+    val resultSet = ResultSetFactory.copyResults(queryExecution.execSelect())
+    queryExecution.close()
+    resultSet
+  }
 }

@@ -1,0 +1,6 @@
+SELECT distinct ?subject
+WHERE {
+  ?subject a <$type> .
+}
+ORDER BY ?subject
+LIMIT $limit OFFSET $offset

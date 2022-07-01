@@ -20,6 +20,14 @@ public class $className {
         return dataAccess.getAll($type.class, rdfFormat);
     }
 
+    public List<$type> getAll(Long limit, Long offset) {
+        return dataAccess.getAll($type.class, limit, offset);
+    }
+
+    public Long count() {
+        return dataAccess.count($type.class);
+    }
+
     public Optional<$type> getById(String id) {
         return dataAccess.getById($type.class, id);
     }
