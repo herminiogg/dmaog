@@ -1,0 +1,4 @@
+SELECT (count ( distinct ?subject ) as ?count)
+WHERE {
+  ?subject a <$type> .
+}

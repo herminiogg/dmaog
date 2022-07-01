@@ -3,7 +3,7 @@ package com.herminiogarcia.dmaog.codeGeneration
 import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, ResourceLoader, Util, WriterFactory}
 import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.datatypes.xsd.XSDDatatype
-import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, ResultSet}
+import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, ResultSet, ResultSetFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory, Resource, Statement}
 import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.update.{UpdateExecutionFactory, UpdateFactory}
@@ -100,7 +100,8 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
   private def doSparqlQuery(model: Model, sparql: String): ResultSet = {
     val query = QueryFactory.create(sparql)
     val queryExecution = QueryExecutionFactory.create(query, model)
-    val resultSet = queryExecution.execSelect()
+    val resultSet = ResultSetFactory.copyResults(queryExecution.execSelect())
+    queryExecution.close()
     resultSet
   }
 

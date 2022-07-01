@@ -20,6 +20,14 @@ public class FilmService {
         return dataAccess.getAll(Film.class, rdfFormat);
     }
 
+    public List<Film> getAll(Long limit, Long offset) {
+        return dataAccess.getAll(Film.class, limit, offset);
+    }
+
+    public Long count() {
+        return dataAccess.count(Film.class);
+    }
+
     public Optional<Film> getById(String id) {
         return dataAccess.getById(Film.class, id);
     }
