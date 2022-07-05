@@ -24,6 +24,9 @@ class Main extends Callable[Int] {
   @Option(names = Array("-m", "--mapping"), description = Array("Path to the file with the mappings"))
   private var mappingRules: String = ""
 
+  @Option(names = Array("--static"), description = Array("Exploit mapping rules without executing them"))
+  private var staticMappingRulesExploitation: Boolean = false
+
   @Option(names = Array("-ml", "--mappingLanguage"), description = Array("Mapping language to use: ShExML or RML"))
   private var mappingLanguage: String = "ShExML"
 
@@ -50,7 +53,8 @@ class Main extends Callable[Int] {
     val fileContent = fileHandler.map(_.mkString)
     try {
       new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName,
-        scala.Option(username), scala.Option(password), scala.Option(drivers), scala.Option(sparqlEndpoint)).generate()
+        scala.Option(username), scala.Option(password), scala.Option(drivers),
+        scala.Option(sparqlEndpoint), staticMappingRulesExploitation).generate()
       1 // well finished
     } finally { fileHandler.foreach(_.close()) }
   }

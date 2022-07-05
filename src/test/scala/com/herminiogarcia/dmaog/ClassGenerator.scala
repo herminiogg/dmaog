@@ -8,10 +8,10 @@ trait ClassGenerator {
 
   val rules: String
 
-  def generateClasses(): Unit = {
+  def generateClasses(static: Boolean = false): Unit = {
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
-      None, None, None, None).generate()
+      None, None, None, None, static).generate()
   }
 
   def loadClass(entityName: String): String = {
