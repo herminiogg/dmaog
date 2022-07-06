@@ -53,14 +53,13 @@ class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
       |}
       |""".stripMargin
 
-  val filmService = new FilmService()
-
   before {
     removeOldData()
     generateClasses()
   }
 
   def removeOldData(): Unit = {
+    val filmService = new FilmService()
     filmService.getAll.forEach(filmService.delete(_))
   }
 
@@ -71,6 +70,7 @@ class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("Updating a field works as expected") {
+    val filmService = new FilmService()
     val items = filmService.getAll
     assert(items.asScala.count(f => {
       f.getId.localName == "1" &&
@@ -132,6 +132,7 @@ class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("Deleting an entity as expected") {
+    val filmService = new FilmService()
     val items = filmService.getAll
     assert(items.asScala.count(f => {
       f.getId.localName == "1" &&
