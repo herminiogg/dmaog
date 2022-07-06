@@ -1,12 +1,12 @@
 package com.herminiogarcia.dmaog.dataAccess
 
-import com.herminiogarcia.dmaog.ClassGenerator
 import com.herminiogarcia.dmaog.dataAccess.generatedCode.FilmService
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
+@DoNotDiscover
 class FilmDataAccessTest extends AnyFunSuite with RDFStatementCreator {
 
   val filmService = new FilmService()
@@ -122,6 +122,13 @@ class FilmDataAccessTest extends AnyFunSuite with RDFStatementCreator {
         f.getSchemaMusicBy.localName == "David_Julyan" &&
         f.getSchemaName == "The Prestige"
     }) == 0)
+  }
+
+  test("Test language tags are encoded correctly") {
+    assert(filmService.getById("1").get().getNameWithLanguage.langTag == "en")
+    assert(filmService.getById("2").get().getNameWithLanguage.langTag == "en")
+    assert(filmService.getById("3").get().getNameWithLanguage.langTag == "en")
+    assert(filmService.getById("4").get().getNameWithLanguage.langTag == "en")
   }
 
 

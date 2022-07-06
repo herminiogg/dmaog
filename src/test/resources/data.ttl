@@ -15,7 +15,8 @@ dbr:Leonardo_DiCaprio
         schema:countryOfOrigin  dbr:USA ;
         schema:director         dbr:Christopher_Nolan ;
         schema:musicBy          dbr:Hans_Zimmer ;
-        schema:name             "Inception" .
+        schema:name             "Inception" ;
+        :nameWithLanguage       "Inception" @en .
 
 dbr:Christian_Bale  a  :Actor ;
         :appear_on  :4 ;
@@ -37,7 +38,9 @@ dbr:Mackenzie_Foy  a  :Actor ;
         schema:countryOfOrigin  dbr:USA ;
         schema:director         dbr:Christopher_Nolan ;
         schema:musicBy          dbr:Hans_Zimmer ;
-        schema:name             "Interstellar" .
+        schema:name             "Interstellar" ;
+        :nameWithLanguage       "Interstellar" @en .
+
 
 dbr:Matthew_McConaughey
         a           :Actor ;
@@ -56,7 +59,8 @@ dbr:John_Lithgow  a  :Actor ;
         schema:countryOfOrigin  dbr:USA ;
         schema:director         dbr:Christopher_Nolan ;
         schema:musicBy          dbr:Hans_Zimmer ;
-        schema:name             "Dunkirk" .
+        schema:name             "Dunkirk" ;
+        :nameWithLanguage       "Dunkirk" @en .
 
 dbr:Ellen_Burstyn  a  :Actor ;
         :appear_on  :2 ;
@@ -111,7 +115,8 @@ dbr:Timothée_Chalamet
         schema:countryOfOrigin  dbr:USA ;
         schema:director         dbr:Christopher_Nolan ;
         schema:musicBy          dbr:David_Julyan ;
-        schema:name             "The Prestige" .
+        schema:name             "The Prestige" ;
+        :nameWithLanguage       "The Prestige" @en .
 
 dbr:Michael_Caine  a  :Actor ;
         :appear_on  :4 ;

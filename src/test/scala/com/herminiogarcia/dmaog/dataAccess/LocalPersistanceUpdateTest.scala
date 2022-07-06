@@ -2,12 +2,13 @@ package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.codeGeneration.CodeGenerator
 import com.herminiogarcia.dmaog.dataAccess.generatedCodeUpdateLocalFile.FilmService
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
+@DoNotDiscover
 class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
 
   val rules =
@@ -52,14 +53,13 @@ class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
       |}
       |""".stripMargin
 
-  val filmService = new FilmService()
-
   before {
     removeOldData()
     generateClasses()
   }
 
   def removeOldData(): Unit = {
+    val filmService = new FilmService()
     filmService.getAll.forEach(filmService.delete(_))
   }
 
@@ -70,6 +70,7 @@ class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("Updating a field works as expected") {
+    val filmService = new FilmService()
     val items = filmService.getAll
     assert(items.asScala.count(f => {
       f.getId.localName == "1" &&
@@ -131,6 +132,7 @@ class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("Deleting an entity as expected") {
+    val filmService = new FilmService()
     val items = filmService.getAll
     assert(items.asScala.count(f => {
       f.getId.localName == "1" &&

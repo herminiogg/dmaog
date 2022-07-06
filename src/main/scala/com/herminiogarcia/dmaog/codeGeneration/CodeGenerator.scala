@@ -105,8 +105,12 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
         }
 
         // Datatype with cardinality conversion
-        val dataType = if(theObject.isLiteral)
-          convertToJavaDataType(theObject.asLiteral().getDatatype) // TODO: loop the results to find the best type
+        val dataType =
+          if(theObject.isLiteral &&
+            (theObject.asLiteral().getLanguage.nonEmpty || theObject.asLiteral().getDatatypeURI == "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"))
+            "MultilingualString"
+          else if(theObject.isLiteral)
+            convertToJavaDataType(theObject.asLiteral().getDatatype) // TODO: loop the results to find the best type
           else "IRIValue"
         val dataTypeWithCardinality = if(objectCardinality > 1) "List<" + dataType + ">" else dataType
         attributes.append(new DataTypedPredicate(predicate, dataTypeWithCardinality))

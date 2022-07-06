@@ -1,6 +1,7 @@
 package $package;
 
 import com.herminiogarcia.dmaog.common.IRIValue;
+import com.herminiogarcia.dmaog.common.MultilingualString;
 import java.util.List;
 
 public class $className {

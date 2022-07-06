@@ -2,11 +2,13 @@ package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.codeGeneration.CodeGenerator
 import com.herminiogarcia.dmaog.dataAccess.generatedCodeSparql.FilmService
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
+
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 import java.io.File
 
+@DoNotDiscover
 class SparqlPersistanceAndDataAccessTest extends AnyFunSuite with BeforeAndAfter {
 
   val rules =
@@ -42,6 +44,7 @@ class SparqlPersistanceAndDataAccessTest extends AnyFunSuite with BeforeAndAfter
       |:Films :[films.id] {
       |    a :Film ;
       |    schema:name [films.name] ;
+      |    :nameWithLanguage [films.name] @en ;
       |    :year [films.year] xsd:integer ;
       |    schema:countryOfOrigin dbr:[films.country] ;
       |    schema:director dbr:[films.directors] ;
@@ -52,7 +55,16 @@ class SparqlPersistanceAndDataAccessTest extends AnyFunSuite with BeforeAndAfter
       |""".stripMargin
 
   before {
+    removeOldData()
     generateClasses()
+  }
+
+  after {
+    removeOldData()
+  }
+
+  def removeOldData(): Unit = {
+    filmService.getAll.forEach(filmService.delete(_))
   }
 
   def generateClasses(): Unit = {
