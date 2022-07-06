@@ -1,8 +1,9 @@
 package com.herminiogarcia.dmaog
 
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
+@DoNotDiscover
 class FilmServiceTest extends AnyFunSuite with BeforeAndAfter with ClassGenerator {
 
   val rules =

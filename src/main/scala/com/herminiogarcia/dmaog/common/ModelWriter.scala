@@ -41,7 +41,9 @@ case class DataSparqlEndpointWriter(override val pathToGenerate: String) extends
     val formattedTriples = triples.map(t => {
       convertURIToPrefixedValue(t.getSubject.getURI, prefixes) + " " +
         convertURIToPrefixedValue(t.getPredicate.getURI, prefixes) + " " + {
-        if (t.getObject.isLiteral) "\"" + t.getLiteral.getString + "\"" +"^^<" + t.getLiteral.getDatatype.getURI + ">"
+        if(t.getObject.isLiteral && t.getObject.asLiteral().getLanguage.nonEmpty)
+          "\"" + t.getObject.asLiteral().getString + "\"" +"@" + t.getObject.asLiteral().getLanguage
+        else if(t.getObject.isLiteral) "\"" + t.getLiteral.getString + "\"" +"^^<" + t.getLiteral.getDatatype.getURI + ">"
         else convertURIToPrefixedValue(t.getObject.asResource().getURI, prefixes) + " "
       } + " ."
     }).mkString("\n")

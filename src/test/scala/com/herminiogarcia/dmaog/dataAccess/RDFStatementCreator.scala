@@ -28,6 +28,13 @@ trait RDFStatementCreator {
     ResourceFactory.createStatement(subject, predicate, obj)
   }
 
+  def createStatementWithMultilingualLiteral(subjectPrefix: String, s: String, predicatePrefix: String, p: String, o: String, langtag: String): Statement = {
+    val subject = ResourceFactory.createResource(subjectPrefix + s)
+    val predicate = ResourceFactory.createProperty(predicatePrefix + p)
+    val obj = ResourceFactory.createLangLiteral(o, langtag)
+    ResourceFactory.createStatement(subject, predicate, obj)
+  }
+
   def loadModel(rdf: String): Model = {
     val model = ModelFactory.createDefaultModel()
     RDFDataMgr.read(model, new ByteArrayInputStream(rdf.getBytes), RDFLanguages.TURTLE)

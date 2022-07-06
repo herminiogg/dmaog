@@ -2,10 +2,10 @@ package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.dataAccess.generatedCode.FilmService
 import org.apache.jena.datatypes.xsd.XSDDatatype
+import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-
+@DoNotDiscover
 class FilmDataAccessRDFTest extends AnyFunSuite with RDFStatementCreator {
 
   val filmService = new FilmService()
@@ -92,5 +92,14 @@ class FilmDataAccessRDFTest extends AnyFunSuite with RDFStatementCreator {
     assert(!items.contains(createStatement(exPrefix, "4", schemaPrefix, "countryOfOrigin", dbrPrefix, "USA")))
     assert(!items.contains(createStatement(exPrefix, "4", schemaPrefix, "musicBy", dbrPrefix, "David_Julyan")))
     assert(!items.contains(createStatementWithLiteral(exPrefix, "4", schemaPrefix, "name", "The Prestige", XSDDatatype.XSDstring)))
+  }
+
+  test("Test language tags are correctly generated") {
+    val items = loadModel(filmService.getAll("Turtle"))
+
+    assert(items.contains(createStatementWithMultilingualLiteral(exPrefix, "1", exPrefix, "nameWithLanguage", "Dunkirk", "en")))
+    assert(items.contains(createStatementWithMultilingualLiteral(exPrefix, "2", exPrefix, "nameWithLanguage", "Interstellar", "en")))
+    assert(items.contains(createStatementWithMultilingualLiteral(exPrefix, "3", exPrefix, "nameWithLanguage", "Inception", "en")))
+    assert(items.contains(createStatementWithMultilingualLiteral(exPrefix, "4", exPrefix, "nameWithLanguage", "The Prestige", "en")))
   }
 }

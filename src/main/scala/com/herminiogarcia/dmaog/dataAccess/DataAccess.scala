@@ -1,6 +1,6 @@
 package com.herminiogarcia.dmaog.dataAccess
 
-import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, PrefixedNameConverter, ResourceLoader}
+import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, ResourceLoader}
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet, ResultSetFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
@@ -77,9 +77,9 @@ class DataAccess(fileNameForGeneratedContent: String,
 
   private def getGroupedStatements(sparql: String,
                                    getSubjectFunction: QuerySolution => String,
-                                   getPredicateFunction: QuerySolution => String): Map[String, List[(String, String)]] = {
+                                   getPredicateFunction: QuerySolution => String): Map[String, List[(String, ObjectResult)]] = {
     val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, () => getModel).execute()
-    val groupedBySubjectResults = mutable.Map[String, List[(String, String)]]()
+    val groupedBySubjectResults = mutable.Map[String, List[(String, ObjectResult)]]()
     while(resultSet.hasNext) {
       val result = resultSet.next()
       val subject = getSubjectFunction(result)
@@ -87,9 +87,12 @@ class DataAccess(fileNameForGeneratedContent: String,
       val theObject = result.get("object")
       val predicateURI = predicate
       val objectValue = {
-        if(theObject == null) ""
-        else if(theObject.isLiteral) theObject.asLiteral().getString
-        else theObject.asResource().getURI
+        if(theObject == null) LiteralResult("")
+        else if(theObject.isLiteral &&
+          (theObject.asLiteral().getLanguage.nonEmpty || theObject.asLiteral().getDatatypeURI == "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"))
+          MultilingualStringResult(theObject.asLiteral().getString, theObject.asLiteral().getLanguage)
+        else if(theObject.isLiteral) LiteralResult(theObject.asLiteral().getString)
+        else IRIResult(theObject.asResource().getURI)
       }
       groupedBySubjectResults.get(subject) match {
         case Some(value) =>
@@ -199,7 +202,7 @@ class DataAccess(fileNameForGeneratedContent: String,
     val sparql = loadFromResources("insertData.sparql")
       .replaceFirst("\\$prefixes", "")
       .replaceFirst("\\$triples", triples)
-    updateExecution(instance, sparql)
+    updateExecution(sparql)
   }
 
   def delete[T](instance: T): Unit = {
@@ -208,11 +211,10 @@ class DataAccess(fileNameForGeneratedContent: String,
       .replaceFirst("\\$prefixes", "")
       .replaceAll("\\$triples", triples)
       .replaceFirst("\\$value", "<" + getIdValue(instance) + ">")
-    updateExecution(instance, sparql)
-
+    updateExecution(sparql)
   }
 
-  private def updateExecution[T](instance: T, sparql: String): Unit = {
+  private def updateExecution(sparql: String): Unit = {
     val dataset = DatasetFactory.create(getModel)
     val updateQuery = UpdateFactory.create(sparql)
     createUpdateProcessor(updateQuery, dataset).execute()
@@ -252,6 +254,8 @@ class DataAccess(fileNameForGeneratedContent: String,
       val values2 = values.map(v => {
         val objectTriple = {
           if(v.isInstanceOf[IRIValue]) Option("<" + v.asInstanceOf[IRIValue].iri + ">")
+          else if(v.isInstanceOf[MultilingualString])
+            Option("\"" + v.asInstanceOf[MultilingualString].value + "\"" +"@" + v.asInstanceOf[MultilingualString].langTag)
           else if(v != null) Option("\"" + v.toString + "\"" +"^^<" + getXSDType(v).getURI + ">")
           else Option.empty
         }
@@ -321,7 +325,7 @@ class DataAccess(fileNameForGeneratedContent: String,
     }).map(_._2 + capitalizedFieldName)
   }
 
-  private def populateObjects[T](groupedBySubjectResults: Map[String, List[(String, String)]], theClass: Class[T]): List[T] = {
+  private def populateObjects[T](groupedBySubjectResults: Map[String, List[(String, ObjectResult)]], theClass: Class[T]): List[T] = {
     val model = getModel
     val prefixedNameConverterFunc = convertPrefixedName(nsPrefixes)_
     val prefixedValueConverterFunc = convertPrefixedNameToValue(nsPrefixes)_
@@ -334,7 +338,7 @@ class DataAccess(fileNameForGeneratedContent: String,
         val attributeName = prefixedNameConverterFunc(attribute._1).capitalize
         val setterName = "set" + attributeName
         val getterName = "get" + attributeName
-        val value = prefixedValueConverterFunc(attribute._2)
+        val value = prefixedValueConverterFunc(attribute._2.value)
         methods.find(_.getName == setterName).foreach(m => {
           val getterMethod = methods.find(_.getName == getterName).headOption
           val isList = m.getParameterTypes.head == classOf[util.List[Object]]
@@ -342,7 +346,10 @@ class DataAccess(fileNameForGeneratedContent: String,
             if(!isList) m.getParameterTypes.head
             else m.getGenericParameterTypes.head.asInstanceOf[ParameterizedType].getActualTypeArguments.headOption.map(_.asInstanceOf[Class[_]]).get
           if(setterParameterType == classOf[IRIValue]) {
-            invokeSetterOrAddToList(m, getterMethod, instance, createIRIValue(attribute._2, model), isList)
+            invokeSetterOrAddToList(m, getterMethod, instance, createIRIValue(attribute._2.value, model), isList)
+          } else if(setterParameterType == classOf[MultilingualString]) {
+            invokeSetterOrAddToList(m, getterMethod, instance,
+              new MultilingualString(attribute._2.value, attribute._2.asInstanceOf[MultilingualStringResult].langtag), isList)
           } else {
             if(setterParameterType.getMethods.exists(_.getName == "valueOf") && setterParameterType != classOf[String]) {
               val numericConversion = setterParameterType.getMethod("valueOf", classOf[String])
@@ -407,7 +414,7 @@ class DataAccess(fileNameForGeneratedContent: String,
     new IRIValue(iri, namespace, localPart)
   }
 
-  private def generateRDF[T](groupedBySubjectResults: Map[String, List[(String, String)]], rdfFormat: String): String = {
+  private def generateRDF[T](groupedBySubjectResults: Map[String, List[(String, ObjectResult)]], rdfFormat: String): String = {
     //new model and add prefixes
     val inputModel = getModel
     val modelToReturn = ModelFactory.createDefaultModel()
@@ -416,8 +423,11 @@ class DataAccess(fileNameForGeneratedContent: String,
     groupedBySubjectResults.foreach({ case (subject, predicateObjects) => predicateObjects.foreach({
       case (predicate, theObject) =>
         inputModel.getResource(subject).listProperties(ResourceFactory.createProperty(predicate)).asScala.filter(s => {
-          if(s.getObject.isLiteral) s.getObject.asLiteral().getString == theObject
-          else s.getObject.asResource().getURI == theObject
+          if(s.getObject.isLiteral && s.getObject.asLiteral().getLanguage.nonEmpty)
+            s.getObject.asLiteral().getString == theObject.value &&
+              s.getObject.asLiteral().getLanguage == theObject.asInstanceOf[MultilingualStringResult].langtag
+          else if(s.getObject.isLiteral) s.getObject.asLiteral().getString == theObject.value
+          else s.getObject.asResource().getURI == theObject.value
         }).foreach(modelToReturn.add)
     }) })
     //serialize in the appropriate format
@@ -460,3 +470,11 @@ case class SparqlEndpointQueryExecutor(sparql: String, endpoint: String) extends
     resultSet
   }
 }
+
+sealed trait ObjectResult {
+  val value: String
+}
+
+case class LiteralResult(value: String) extends ObjectResult
+case class IRIResult(value: String) extends ObjectResult
+case class MultilingualStringResult(value: String, langtag: String) extends ObjectResult

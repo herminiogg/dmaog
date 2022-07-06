@@ -1,7 +1,7 @@
 package com.herminiogarcia.dmaog.dataAccess.generatedCode;
 
 import com.herminiogarcia.dmaog.common.IRIValue;
-
+import com.herminiogarcia.dmaog.common.MultilingualString;
 import java.util.List;
 
 public class Film {
@@ -15,6 +15,7 @@ public class Film {
     private IRIValue schemaCountryOfOrigin;
     private Integer year;
     private List<IRIValue> screenwritter;
+    private MultilingualString nameWithLanguage;
     private IRIValue cinematographer;
     private IRIValue id;
 
@@ -44,6 +45,10 @@ public class Film {
 
     public List<IRIValue> getScreenwritter() {
         return this.screenwritter;
+    }
+
+    public MultilingualString getNameWithLanguage() {
+        return this.nameWithLanguage;
     }
 
     public IRIValue getCinematographer() {
@@ -82,6 +87,11 @@ public class Film {
 
     public Film setScreenwritter(List<IRIValue> screenwritter) {
         this.screenwritter = screenwritter;
+        return this;
+    }
+
+    public Film setNameWithLanguage(MultilingualString nameWithLanguage) {
+        this.nameWithLanguage = nameWithLanguage;
         return this;
     }
 

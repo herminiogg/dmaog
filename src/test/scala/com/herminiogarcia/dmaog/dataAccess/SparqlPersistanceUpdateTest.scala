@@ -1,13 +1,15 @@
 package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.codeGeneration.CodeGenerator
+import com.herminiogarcia.dmaog.common.MultilingualString
 import com.herminiogarcia.dmaog.dataAccess.generatedCodeSparql.FilmService
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
+@DoNotDiscover
 class SparqlPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
 
   val rules =
@@ -43,6 +45,7 @@ class SparqlPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
       |:Films :[films.id] {
       |    a :Film ;
       |    schema:name [films.name] ;
+      |    :nameWithLanguage [films.name] @en ;
       |    :year [films.year] xsd:integer ;
       |    schema:countryOfOrigin dbr:[films.country] ;
       |    schema:director dbr:[films.directors] ;
@@ -204,6 +207,38 @@ class SparqlPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
         f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
         f.getSchemaMusicBy.localName == "David_Julyan" &&
         f.getSchemaName == "The Prestige"
+    }) == 1)
+  }
+
+  test("Updating a multilingual value works as expected") {
+    val items = filmService.getAll
+    assert(items.asScala.count(f => {
+      f.getId.localName == "1" &&
+        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
+        f.getYear == 2017 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Dunkirk" &&
+        f.getNameWithLanguage.value == "Dunkirk" &&
+        f.getNameWithLanguage.langTag == "en"
+    }) == 1)
+
+    val film = filmService.getById("1").get()
+    film.setNameWithLanguage(new MultilingualString("Dunkerque", "es"))
+    filmService.commit(film)
+
+    val itemsUpdated = filmService.getAll
+    assert(itemsUpdated.asScala.count(f => {
+      f.getId.localName == "1" &&
+        f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
+        f.getYear == 2017 &&
+        f.getSchemaCountryOfOrigin.localName == "USA" &&
+        f.getSchemaMusicBy.namespace == "http://dbpedia.org/resource/" &&
+        f.getSchemaMusicBy.localName == "Hans_Zimmer" &&
+        f.getSchemaName == "Dunkirk" &&
+        f.getNameWithLanguage.value == "Dunkerque" &&
+        f.getNameWithLanguage.langTag == "es"
     }) == 1)
   }
 }

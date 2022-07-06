@@ -2,12 +2,13 @@ package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.codeGeneration.CodeGenerator
 import com.herminiogarcia.dmaog.dataAccess.generatedCodeUpdateLocalFile.FilmService
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
+@DoNotDiscover
 class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
 
   val rules =

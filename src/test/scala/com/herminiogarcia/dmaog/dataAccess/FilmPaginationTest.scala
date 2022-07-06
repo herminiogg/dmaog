@@ -2,12 +2,13 @@ package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.codeGeneration.CodeGenerator
 import com.herminiogarcia.dmaog.dataAccess.generatedCode.FilmService
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.File
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
+@DoNotDiscover
 class FilmPaginationTest extends AnyFunSuite with BeforeAndAfter {
 
   val rules =
@@ -76,7 +77,7 @@ class FilmPaginationTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("Pagination is returning the concerned elements correctly") {
-    val items1 =filmService.getAll(2, 0)
+    val items1 = filmService.getAll(2, 0)
     assert(items1.asScala.count(f => {
       f.getId.localName == "1" &&
         f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
@@ -152,7 +153,7 @@ class FilmPaginationTest extends AnyFunSuite with BeforeAndAfter {
   test("Pagination is returning the concerned elements correctly from SPARQL endpoint") {
     removeOldData()
     generateClasses()
-    val items1 =filmsServiceSparql.getAll(2, 0)
+    val items1 = filmsServiceSparql.getAll(2, 0)
     assert(items1.asScala.count(f => {
       f.getId.localName == "1" &&
         f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&
@@ -188,7 +189,7 @@ class FilmPaginationTest extends AnyFunSuite with BeforeAndAfter {
         f.getSchemaName == "The Prestige"
     }) == 0)
 
-    val items2 =filmsServiceSparql.getAll(2, 2)
+    val items2 = filmsServiceSparql.getAll(2, 2)
     assert(items2.asScala.count(f => {
       f.getId.localName == "1" &&
         f.getCinematographer.iri == "http://dbpedia.org/resource/Hoyte_van_Hoytema" &&

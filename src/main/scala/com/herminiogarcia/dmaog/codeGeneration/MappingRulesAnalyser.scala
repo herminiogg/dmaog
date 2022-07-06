@@ -3,7 +3,7 @@ package com.herminiogarcia.dmaog.codeGeneration
 import com.herminiogarcia.dmaog.common.DataTypedPredicate
 import com.herminiogarcia.dmaog.common.Util.convertToJavaDataType
 import com.herminiogarcia.shexml.MappingLauncher
-import com.herminiogarcia.shexml.ast.{AST, Action, DataTypeLiteral, Declaration, DeclarationStatement, LiteralObject, LiteralObjectValue, LiteralSubject, ObjectElement, Prefix, ShExML, Shape, ShapeLink}
+import com.herminiogarcia.shexml.ast.{AST, Action, DataTypeLiteral, Declaration, DeclarationStatement, LangTag, LiteralObject, LiteralObjectValue, LiteralSubject, ObjectElement, Prefix, ShExML, Shape, ShapeLink}
 import org.apache.jena.datatypes.{RDFDatatype, TypeMapper}
 import org.apache.jena.datatypes.xsd.XSDDatatype
 
@@ -50,15 +50,18 @@ case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesA
         .filterNot(po => po.predicate.prefix == "rdf:" && po.predicate.extension == "type").map(po => {
           val predicate = getPrefixes().find(_._1 == po.predicate.prefix).get._2 + po.predicate.extension
           po.objectOrShapeLink match {
-            case ObjectElement(prefix, _, _, _, dataType, _, _) => dataType.map {
+            case ObjectElement(prefix, _, _, _, dataType, langTag, _) => dataType.map {
               case DataTypeLiteral(value) =>
                 val dataTypeURI = "http://www.w3.org/2001/XMLSchema#" + value.split(":")(1)
                 val xsdType = TypeMapper.getInstance().getSafeTypeByName(dataTypeURI)
                 //not having cardinality information, safest way is to assume every attribute can have multiple values
                 val javaType = "List<" + convertToJavaDataType(xsdType) + ">"
-                new DataTypedPredicate(predicate, javaType)
-              case _=> generateTypeAccordingToPrefix(prefix, predicate)
-            }.getOrElse(generateTypeAccordingToPrefix(prefix, predicate))
+                langTag match {
+                  case Some(_) => new DataTypedPredicate(predicate, "List<MultilingualString>")
+                  case None => new DataTypedPredicate(predicate, javaType)
+                }
+              case _=> generateTypeAccordingToPrefix(prefix, predicate, langTag)
+            }.getOrElse(generateTypeAccordingToPrefix(prefix, predicate, langTag))
             case ShapeLink(_) => new DataTypedPredicate(predicate, "List<IRIValue>")
             case LiteralObject(_, _) => new DataTypedPredicate(predicate, "List<IRIValue>")
             case LiteralObjectValue(_) => new DataTypedPredicate(predicate, "List<String>")
@@ -68,8 +71,9 @@ case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesA
     }).toMap
   }
 
-  private def generateTypeAccordingToPrefix(prefix: String, predicate: String): DataTypedPredicate = {
-    if(prefix.isEmpty) new DataTypedPredicate(predicate, "List<String>")
+  private def generateTypeAccordingToPrefix(prefix: String, predicate: String, langTag: Option[LangTag]): DataTypedPredicate = {
+    if(prefix.isEmpty && langTag.isDefined) new DataTypedPredicate(predicate, "List<MultilingualString>")
+    else if(prefix.isEmpty) new DataTypedPredicate(predicate, "List<String>")
     else new DataTypedPredicate(predicate, "List<IRIValue>")
   }
 
