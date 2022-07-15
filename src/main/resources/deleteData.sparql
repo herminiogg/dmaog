@@ -1,0 +1,8 @@
+$prefixes
+
+DELETE {
+  $triples
+} WHERE {
+  $triples
+  FILTER(?id = $value)
+}

@@ -1,22 +1,26 @@
-package $package;
+package com.herminiogarcia.dmaog.dataAccess.generatedCodeSparql;
 
 import com.herminiogarcia.dmaog.dataAccess.DataAccess;
+
 import java.util.HashMap;
 import java.util.Map;
 
 public class DataAccessSingleton {
 
     private static DataAccess dataAccess;
-    private static String dataFile = "$pathToData";
+    private static String dataFile = null;
     private static String mappingRules;
     private static String mappingLanguage;
     private static Long reloadMinutes;
     private static String username;
     private static String password;
-    private static String drivers = "$drivers";
-    private static String sparqlEndpoint = $sparqlEndpoint;
+    private static String drivers = "";
+    private static String sparqlEndpoint = "http://localhost:3030/example";
     private static Map<String, String> prefixes = new HashMap<String, String>() {{
-        $prefixes
+        put("dbr","http://dbpedia.org/resource/");
+        put("xsd","http://www.w3.org/2001/XMLSchema#");
+        put("schema","http://schema.org/");
+        put("","http://example.com/");
     }};
 
     public static DataAccess getInstance() {

@@ -1,5 +1,8 @@
 package com.herminiogarcia.dmaog
 
+import org.scalatest.DoNotDiscover
+
+@DoNotDiscover
 class FilmAndActorCodeGenerationTest extends FilmCodeGenerationTest {
 
   override val rules =

@@ -4,7 +4,7 @@ import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
-class FilmCodeGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassGenerator {
+class FilmCodeStaticGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassGenerator {
 
   val rules =
     """
@@ -49,7 +49,7 @@ class FilmCodeGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassG
       |""".stripMargin
 
   before {
-    generateClasses()
+    generateClasses(true)
   }
 
   test("Class name and package are correctly generated") {
@@ -64,13 +64,13 @@ class FilmCodeGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassG
     assert(content.contains("public final static String rdfType = \"http://example.com/Film\";"))
     assert(content.contains("public final static String subjectPrefix = \"http://example.com/\";"))
 
-    assert(content.contains("private Integer year;"))
-    assert(content.contains("private String schemaName;"))
+    assert(content.contains("private List<Integer> year;"))
+    assert(content.contains("private List<String> schemaName;"))
     assert(content.contains("private List<IRIValue> screenwritter;"))
-    assert(content.contains("private IRIValue schemaCountryOfOrigin;"))
-    assert(content.contains("private IRIValue schemaDirector;"))
-    assert(content.contains("private IRIValue schemaMusicBy;"))
-    assert(content.contains("private IRIValue cinematographer;"))
+    assert(content.contains("private List<IRIValue> schemaCountryOfOrigin;"))
+    assert(content.contains("private List<IRIValue> schemaDirector;"))
+    assert(content.contains("private List<IRIValue> schemaMusicBy;"))
+    assert(content.contains("private List<IRIValue> cinematographer;"))
     assert(content.contains("private IRIValue id;"))
   }
 
@@ -82,13 +82,13 @@ class FilmCodeGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassG
 
   test("Setters are correctly generated") {
     val content = loadClass("Film")
-    val setYear = "public Film setYear\\(Integer year\\)[ \r\n]*[{][ \r\n]*this.year = year;[ \r\n]*return this;[ \r\n]*[}]".r
-    val setSchemaName = "public Film setSchemaName\\(String schemaName\\)[ \r\n]*[{][ \r\n]*this.schemaName = schemaName;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setYear = "public Film setYear\\(List<Integer> year\\)[ \r\n]*[{][ \r\n]*this.year = year;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setSchemaName = "public Film setSchemaName\\(List<String> schemaName\\)[ \r\n]*[{][ \r\n]*this.schemaName = schemaName;[ \r\n]*return this;[ \r\n]*[}]".r
     val setScreenwritter = "public Film setScreenwritter\\(List<IRIValue> screenwritter\\)[ \r\n]*[{][ \r\n]*this.screenwritter = screenwritter;[ \r\n]*return this;[ \r\n]*[}]".r
-    val setSchemaCountryOfOrigin = "public Film setSchemaCountryOfOrigin\\(IRIValue schemaCountryOfOrigin\\)[ \r\n]*[{][ \r\n]*this.schemaCountryOfOrigin = schemaCountryOfOrigin;[ \r\n]*return this;[ \r\n]*[}]".r
-    val setSchemaDirector = "public Film setSchemaDirector\\(IRIValue schemaDirector\\)[ \r\n]*[{][ \r\n]*this.schemaDirector = schemaDirector;[ \r\n]*return this;[ \r\n]*[}]".r
-    val setSchemaMusicBy = "public Film setSchemaMusicBy\\(IRIValue schemaMusicBy\\)[ \r\n]*[{][ \r\n]*this.schemaMusicBy = schemaMusicBy;[ \r\n]*return this;[ \r\n]*[}]".r
-    val setCinematographer = "public Film setCinematographer\\(IRIValue cinematographer\\)[ \r\n]*[{][ \r\n]*this.cinematographer = cinematographer;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setSchemaCountryOfOrigin = "public Film setSchemaCountryOfOrigin\\(List<IRIValue> schemaCountryOfOrigin\\)[ \r\n]*[{][ \r\n]*this.schemaCountryOfOrigin = schemaCountryOfOrigin;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setSchemaDirector = "public Film setSchemaDirector\\(List<IRIValue> schemaDirector\\)[ \r\n]*[{][ \r\n]*this.schemaDirector = schemaDirector;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setSchemaMusicBy = "public Film setSchemaMusicBy\\(List<IRIValue> schemaMusicBy\\)[ \r\n]*[{][ \r\n]*this.schemaMusicBy = schemaMusicBy;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setCinematographer = "public Film setCinematographer\\(List<IRIValue> cinematographer\\)[ \r\n]*[{][ \r\n]*this.cinematographer = cinematographer;[ \r\n]*return this;[ \r\n]*[}]".r
     val setId = "public Film setId\\(IRIValue id\\)[ \r\n]*[{][ \r\n]*this.id = id;[ \r\n]*return this;[ \r\n]*[}]".r
 
     assert(setYear.findFirstIn(content).isDefined)
@@ -103,13 +103,13 @@ class FilmCodeGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassG
 
   test("Getters are correctly generated") {
     val content = loadClass("Film")
-    val getYear = "public Integer getYear\\(\\)[ \r\n]*[{][ \r\n]*return this.year;[ \r\n]*[}]".r
-    val getSchemaName = "public String getSchemaName\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaName;[ \r\n]*[}]".r
+    val getYear = "public List<Integer> getYear\\(\\)[ \r\n]*[{][ \r\n]*return this.year;[ \r\n]*[}]".r
+    val getSchemaName = "public List<String> getSchemaName\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaName;[ \r\n]*[}]".r
     val getScreenwritter = "public List<IRIValue> getScreenwritter\\(\\)[ \r\n]*[{][ \r\n]*return this.screenwritter;[ \r\n]*[}]".r
-    val getSchemaCountryOfOrigin = "public IRIValue getSchemaCountryOfOrigin\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaCountryOfOrigin;[ \r\n]*[}]".r
-    val getSchemaDirector = "public IRIValue getSchemaDirector\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaDirector;[ \r\n]*[}]".r
-    val getSchemaMusicBy = "public IRIValue getSchemaMusicBy\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaMusicBy;[ \r\n]*[}]".r
-    val getCinematographer = "public IRIValue getCinematographer\\(\\)[ \r\n]*[{][ \r\n]*return this.cinematographer;[ \r\n]*[}]".r
+    val getSchemaCountryOfOrigin = "public List<IRIValue> getSchemaCountryOfOrigin\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaCountryOfOrigin;[ \r\n]*[}]".r
+    val getSchemaDirector = "public List<IRIValue> getSchemaDirector\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaDirector;[ \r\n]*[}]".r
+    val getSchemaMusicBy = "public List<IRIValue> getSchemaMusicBy\\(\\)[ \r\n]*[{][ \r\n]*return this.schemaMusicBy;[ \r\n]*[}]".r
+    val getCinematographer = "public List<IRIValue> getCinematographer\\(\\)[ \r\n]*[{][ \r\n]*return this.cinematographer;[ \r\n]*[}]".r
     val getId = "public IRIValue getId\\(\\)[ \r\n]*[{][ \r\n]*return this.id;[ \r\n]*[}]".r
 
     assert(getYear.findFirstIn(content).isDefined)
