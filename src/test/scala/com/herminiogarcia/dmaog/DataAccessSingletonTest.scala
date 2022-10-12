@@ -71,12 +71,12 @@ class DataAccessSingletonTest extends AnyFunSuite with BeforeAndAfter with Class
     assert(content.contains("private static String password;"))
     assert(content.contains("private static String drivers = \"\";"))
     assert(content.contains("private static String sparqlEndpoint = null;"))
-    assert(("private static Map[<]String, String[>] prefixes = new HashMap[<]String, String[>][(][)] [{][{]" +
-      "[ \r\n\t]*put[(]\"dbr\",\"http://dbpedia.org/resource/\"[)];" +
-      "[ \r\n\t]*put[(]\"xsd\",\"http://www.w3.org/2001/XMLSchema#\"[)];" +
-      "[ \r\n\t]*put[(]\"schema\",\"http://schema.org/\"[)];" +
-      "[ \r\n\t]*put[(]\"\",\"http://example.com/\"[)];" +
-      "[ \r\n\t]*[}][}];").r.findFirstIn(content).isDefined)
+    assert("private static Map[<]String, String[>] prefixes = new HashMap[<]String, String[>][(][)] [{][{]".r.findFirstIn(content).isDefined)
+    assert("[ \r\n\t]*put[(]\"dbr\",\"http://dbpedia.org/resource/\"[)];".r.findFirstIn(content).isDefined)
+    assert("[ \r\n\t]*put[(]\"xsd\",\"http://www.w3.org/2001/XMLSchema#\"[)];".r.findFirstIn(content).isDefined)
+    assert("[ \r\n\t]*put[(]\"schema\",\"http://schema.org/\"[)];".r.findFirstIn(content).isDefined)
+    assert("[ \r\n\t]*put[(]\"\",\"http://example.com/\"[)];".r.findFirstIn(content).isDefined)
+    assert("[ \r\n\t]*[}][}];".r.findFirstIn(content).isDefined)
   }
 
   test("getInstance is correctly generated") {
