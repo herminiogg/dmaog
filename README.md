@@ -29,34 +29,56 @@ section.
 
 # CLI
 ```
-Usage: dmaog [-hV] [-dr=<drivers>] -m=<mappingRules> [-ml=<mappingLanguage>]
-    -o=<outputPath> -p=<packageName> [-ps=<password>] [-u=<username>]
+Usage: dmaog [-hV] [--static] [-dr=<drivers>] [-m=<mappingRules>]
+             [-ml=<mappingLanguage>] -o=<outputPath> -p=<packageName>
+             [-ps=<password>] [-se=<sparqlEndpoint>] [-u=<username>]
 Generate data access objects and services from your mapping rules.
-    -dr, --drivers=<drivers>
-        Drivers string in case it is not included in ShExML
-    -h, --help      Show this help message and exit.
-    -m, --mapping=<mappingRules>
-        Path to the file with the mappings
-    -ml, --mappingLanguage=<mappingLanguage>
-        Mapping language to use: ShExML or RML
-    -o, --output=<outputPath>
-        Path where to generate the output files
-    -p, --package=<packageName>
-        Package information for the generated files
-    -ps, --password=<password>
-        Password in case of database connection
-    -u, --username=<username>
-        Username in case of database connection
-    -V, --version   Print version information and exit.
+      -dr, --drivers=<drivers>
+                  Drivers string in case it is not included in ShExML
+  -h, --help      Show this help message and exit.
+  -m, --mapping=<mappingRules>
+                  Path to the file with the mappings
+      -ml, --mappingLanguage=<mappingLanguage>
+                  Mapping language to use: ShExML or RML
+  -o, --output=<outputPath>
+                  Path where to generate the output files
+  -p, --package=<packageName>
+                  Package information for the generated files
+      -ps, --password=<password>
+                  Password in case of database connection
+      -se, --sparqlEndpoint=<sparqlEndpoint>
+                  URL pointing to the SPARQL endpoint
+      --static    Exploit mapping rules without executing them
+  -u, --username=<username>
+                  Username in case of database connection
+  -V, --version   Print version information and exit.
 ```
+
+# Supported features
+* Generation of data against files and SPARQL endpoints
+* Using already existing data files and SPARQL endpoints without mapping rules
+* Update actions on files and SPARQL endpoints (without authentication)
+* Static analysis of ShExML rules (not need to run the mapping rules to generate classes)
+* Multilingual strings
+* Pagination of the results
 
 # Supported methods in services
 * getAll(): List[Type] -> Returns all the results for the type
+* getAll(Long limit, Long offset): List[Type] -> Returns all the results for the type within the given page
+* getAll(String rdfFormat): String -> Returns all the results in the requested format
+* count(): Long -> Returns the total number of objects of this type
 * getById(String id): Type -> Return the object with the given id for the type. Take into account that the id is refering
 to the local part of the subject URI when talking about RDF data.
+* getById(String id, String rdfFormat): String  -> Return the object with the given id in the requested format.
 * getByField(String fieldName, String value): List<Type> -> Return all the results whose indicated field value matches with
 the given value. Take into account that the fieldName refers to the localPart of the predicate URI when talking about RDF data.
+* getByField(String fieldName, String value, String rdfFormat): String -> Return all the results whose indicated field 
+value matches with the given value in the requested format.
+* commit(Type instance) -> Deletes the instance (if it exists) in the data store and inserts the new data. It can act 
+as create or update method.
+* delete(Type instance) -> Deletes the instance in the data store.
 
 # Future work
-* Support for Triple Stores and for data modification actions 
+* Support for authentication on update actions against SPARQL endpoints
 * Possibility to use Shapes for code generation
+* Static analysis of RML rules

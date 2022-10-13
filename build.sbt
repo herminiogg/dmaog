@@ -4,7 +4,7 @@ lazy val dmaog = project
   .in(file("."))
   .settings(
     name := "DMAOG",
-    version := "0.1.1",
+    version := "0.1.2",
     scalaVersion := "3.2.0",
     crossScalaVersions := Seq("2.12.17", "2.13.9", "3.2.0"),
     libraryDependencies ++= Seq(
@@ -21,6 +21,7 @@ lazy val dmaog = project
       "org.apache.jena" % "apache-jena-libs" % "3.8.0"
     ),
     assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", "services", xs @ _*) => MergeStrategy.concat
       case PathList("META-INF", xs @ _*) => MergeStrategy.discard
       case x => MergeStrategy.first
     }
