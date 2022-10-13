@@ -50,7 +50,7 @@ case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesA
         .filterNot(po => po.predicate.prefix == "rdf:" && po.predicate.extension == "type").map(po => {
           val predicate = getPrefixes().find(_._1 == po.predicate.prefix).get._2 + po.predicate.extension
           po.objectOrShapeLink match {
-            case ObjectElement(prefix, _, _, _, dataType, langTag, _) => dataType.map {
+            case ObjectElement(prefix, _, _, _, _, dataType, langTag, _) => dataType.map {
               case DataTypeLiteral(value) =>
                 val dataTypeURI = "http://www.w3.org/2001/XMLSchema#" + value.split(":")(1)
                 val xsdType = TypeMapper.getInstance().getSafeTypeByName(dataTypeURI)
@@ -85,8 +85,8 @@ case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesA
 
   def getSubjectPrefix(theType: String) = {
     getTypes().find(_._2 == theType).get._1.action match {
-      case Action(shapePrefix, _) => getPrefixes().find(_._1 == shapePrefix).get._2
-      case LiteralSubject(prefix, _) => getPrefixes().find(_._1 == prefix).get._2
+      case Action(shapePrefix, _, _) => getPrefixes().find(_._1 == shapePrefix).get._2
+      case LiteralSubject(prefix, _) => getPrefixes().find(_._1 == prefix.name).get._2
     }
   }
 

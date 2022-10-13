@@ -17,4 +17,4 @@ jobs:
       - name: Set up Fuseki
         run: docker run --rm -d -p 3030:3030 atomgraph/fuseki --mem /example
       - name: Run tests
-        run: sbt test
+        run: sbt "+ test"

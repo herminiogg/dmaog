@@ -188,7 +188,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
   private def getPrefixes(finalPath: String): Map[String, String] = {
     if(staticExploitation) {
       val mappingRulesAnalyser = createMappingRulesAnalyser
-      mappingRulesAnalyser.getPrefixes.map {
+      mappingRulesAnalyser.getPrefixes().map {
         case (k, v) => k.replaceFirst(":", "") -> v
       }
     } else {
