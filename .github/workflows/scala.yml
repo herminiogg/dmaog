@@ -15,6 +15,6 @@ jobs:
           java-version: '11'
           distribution: 'adopt'
       - name: Set up Fuseki
-        run: echo root:root > confFuseki.txt && docker run --rm -v /home/runner/work/dmaog/dmaog:/dmaog/. -p 3030:3030 atomgraph/fuseki --passwd=/dmaog/confFuseki.txt --mem=/example
+        run: echo root:root > confFuseki.txt && docker run --rm -d -v /home/runner/work/dmaog/dmaog:/dmaog/. -p 3030:3030 atomgraph/fuseki --passwd=/dmaog/confFuseki.txt --mem=/example
       - name: Run tests
         run: sbt "+ test"
