@@ -12,7 +12,7 @@ trait ClassGenerator {
     removeDirContent()
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
-      None, None, None, None, static).generate()
+      None, None, None, None, None, None, static).generate()
   }
 
   def removeDirContent(): Unit = {

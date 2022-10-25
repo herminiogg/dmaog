@@ -63,7 +63,7 @@ class FilmPaginationTest extends AnyFunSuite with BeforeAndAfter {
   def generateClasses(): Unit = {
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
-      None, None, None, Some("http://localhost:3030/example")).generate()
+      None, None, None, Some("http://localhost:3030/example"), Some("root"), Some("root")).generate()
   }
 
   test("Count is working as expected on local file") {

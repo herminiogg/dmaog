@@ -1,8 +1,9 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
 import com.herminiogarcia.dmaog.common.Util.convertToJavaDataType
-import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, ResourceLoader, Util, WriterFactory}
+import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, ResourceLoader, SPARQLAuthentication, Util, WriterFactory}
 import com.herminiogarcia.shexml.MappingLauncher
+import org.apache.http.auth.AUTH
 import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{QueryExecutionFactory, QueryFactory, ResultSet, ResultSetFactory}
@@ -11,7 +12,7 @@ import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.update.{UpdateExecutionFactory, UpdateFactory}
 
 import java.io.ByteArrayInputStream
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -19,10 +20,14 @@ import scala.util.{Failure, Success, Try}
 
 class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathToGenerate: String, packageName: String,
                    username: Option[String], password: Option[String], drivers: Option[String],
-                    sparqlEndpoint: Option[String], staticExploitation: Boolean = false) extends ResourceLoader
-        with ModelLoader with PrefixedNameConverter with MappingRulesRunner {
+                    sparqlEndpoint: Option[String], sparqlEndpointUsername: Option[String],
+                    sparqlEndpointPassword: Option[String],
+                    staticExploitation: Boolean = false) extends ResourceLoader
+        with ModelLoader with PrefixedNameConverter with MappingRulesRunner with SPARQLAuthentication {
 
   val namespaces: mutable.Map[String, String] = mutable.HashMap[String, String]()
+  
+  initAuthenticationContext(sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword)
 
   def generate(): Unit = {
     if(staticExploitation && mappingRules.isDefined) {

@@ -36,6 +36,12 @@ class Main extends Callable[Int] {
   @Option(names = Array("-se", "--sparqlEndpoint"), description = Array("URL pointing to the SPARQL endpoint"))
   private var sparqlEndpoint: String = null
 
+  @Option(names = Array("-seu", "--sparqlEndpointUsername"), description = Array("Username for the SPARQL endpoint"))
+  private var sparqlEndpointUsername: String = null
+
+  @Option(names = Array("-sep", "--sparqlEndpointPassword"), description = Array("Password for the SPARQL endpoint"))
+  private var sparqlEndpointPassword: String = null
+
   @Option(names = Array("-p", "--package"), required = true, description = Array("Package information for the generated files"))
   private var packageName: String = ""
 
@@ -54,7 +60,8 @@ class Main extends Callable[Int] {
     try {
       new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName,
         scala.Option(username), scala.Option(password), scala.Option(drivers),
-        scala.Option(sparqlEndpoint), staticMappingRulesExploitation).generate()
+        scala.Option(sparqlEndpoint), scala.Option(sparqlEndpointUsername), 
+        scala.Option(sparqlEndpointPassword), staticMappingRulesExploitation).generate()
       1 // well finished
     } finally { fileHandler.foreach(_.close()) }
   }
