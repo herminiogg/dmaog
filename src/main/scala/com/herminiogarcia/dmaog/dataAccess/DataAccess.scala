@@ -11,7 +11,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import java.util.Optional
-import scala.collection.JavaConverters.*
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
@@ -28,10 +28,7 @@ class DataAccess(fileNameForGeneratedContent: String,
                  prefixes: java.util.Map[String, String]) extends ResourceLoader with ModelLoader
                                 with PrefixedNameConverter with SPARQLAuthentication {
 
-  initAuthenticationContext(
-    Option.unless(sparqlEndpoint == null || sparqlEndpoint.isEmpty)(sparqlEndpoint),
-    Option.unless(sparqlEndpointUsername == null || sparqlEndpointUsername.isEmpty)(sparqlEndpointUsername),
-    Option.unless(sparqlEndpointPassword == null || sparqlEndpointPassword.isEmpty)(sparqlEndpointPassword))
+  initAuthenticationContext(sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword)
 
   private val nsPrefixes: Map[String, String] = {
     val model = getModel

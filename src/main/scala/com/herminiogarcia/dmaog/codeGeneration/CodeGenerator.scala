@@ -12,7 +12,7 @@ import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.update.{UpdateExecutionFactory, UpdateFactory}
 
 import java.io.ByteArrayInputStream
-import scala.collection.JavaConverters.*
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
