@@ -1,6 +1,6 @@
 package com.herminiogarcia.dmaog.dataAccess
 
-import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, ResourceLoader}
+import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, ResourceLoader, SPARQLAuthentication}
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet, ResultSetFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
@@ -23,7 +23,12 @@ class DataAccess(fileNameForGeneratedContent: String,
                  password: String = null,
                  drivers: String = "",
                  sparqlEndpoint: String = "",
-                 prefixes: java.util.Map[String, String]) extends ResourceLoader with ModelLoader with PrefixedNameConverter {
+                 sparqlEndpointUsername: String = "",
+                 sparqlEndpointPassword: String = "",
+                 prefixes: java.util.Map[String, String]) extends ResourceLoader with ModelLoader
+                                with PrefixedNameConverter with SPARQLAuthentication {
+
+  initAuthenticationContext(sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword)
 
   private val nsPrefixes: Map[String, String] = {
     val model = getModel

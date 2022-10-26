@@ -16,6 +16,8 @@ public class DataAccessSingleton {
     private static String password;
     private static String drivers = "";
     private static String sparqlEndpoint = "http://localhost:3030/example";
+    private static String sparqlEndpointUsername = "root";
+    private static String sparqlEndpointPassword = "root";
     private static Map<String, String> prefixes = new HashMap<String, String>() {{
         put("dbr","http://dbpedia.org/resource/");
         put("xsd","http://www.w3.org/2001/XMLSchema#");
@@ -26,7 +28,7 @@ public class DataAccessSingleton {
     public static DataAccess getInstance() {
         if(dataAccess == null) {
             dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes,
-                    username, password, drivers, sparqlEndpoint, prefixes);
+                    username, password, drivers, sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword, prefixes);
         }
         return dataAccess;
     }

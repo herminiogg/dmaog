@@ -71,6 +71,8 @@ class DataAccessSingletonTest extends AnyFunSuite with BeforeAndAfter with Class
     assert(content.contains("private static String password;"))
     assert(content.contains("private static String drivers = \"\";"))
     assert(content.contains("private static String sparqlEndpoint = null;"))
+    assert(content.contains("private static String sparqlEndpointUsername;"))
+    assert(content.contains("private static String sparqlEndpointPassword;"))
     assert("private static Map[<]String, String[>] prefixes = new HashMap[<]String, String[>][(][)] [{][{]".r.findFirstIn(content).isDefined)
     assert("[ \r\n\t]*put[(]\"dbr\",\"http://dbpedia.org/resource/\"[)];".r.findFirstIn(content).isDefined)
     assert("[ \r\n\t]*put[(]\"xsd\",\"http://www.w3.org/2001/XMLSchema#\"[)];".r.findFirstIn(content).isDefined)
@@ -83,7 +85,7 @@ class DataAccessSingletonTest extends AnyFunSuite with BeforeAndAfter with Class
     val content = loadClass("DataAccessSingleton")
     val getInstance = ("public static DataAccess getInstance[(][)][ \r\n]*[{][ \r\n]*if[(]dataAccess == null[)]" +
       "[ \r\n]*[{][ \r\n]*dataAccess = new DataAccess[(]dataFile, mappingRules, mappingLanguage, reloadMinutes," +
-      "[ \r\n\t]*username, password, drivers, sparqlEndpoint, prefixes[)];" +
+      "[ \r\n\t]*username, password, drivers, sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword, prefixes[)];" +
       "[ \r\n]*[}][ \r\n]*return dataAccess;[ \r\n]*[}]").r
 
     assert(getInstance.findFirstIn(content).isDefined)
