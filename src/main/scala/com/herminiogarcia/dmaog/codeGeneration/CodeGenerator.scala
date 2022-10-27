@@ -1,7 +1,7 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
 import com.herminiogarcia.dmaog.common.Util.convertToJavaDataType
-import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, ResourceLoader, SPARQLAuthentication, Util, WriterFactory}
+import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication, Util, WriterFactory, QueryExecutor}
 import com.herminiogarcia.shexml.MappingLauncher
 import org.apache.http.auth.AUTH
 import org.apache.jena.datatypes.RDFDatatype
@@ -40,9 +40,9 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       generateClasses(finalAttributesPerType)
     } else {
       val pathToRDF = generateData()
-      val model = loadModel(pathToRDF, None, null, None, username, password, drivers, sparqlEndpoint)
-      val types = getTypes(model)
-      val attributesPerType = getAttributesPerType(types, model)
+      def modelLoader = () => loadModel(pathToRDF, None, null, None, username, password, drivers, sparqlEndpoint)
+      val types = getTypes(modelLoader, sparqlEndpoint)
+      val attributesPerType = getAttributesPerType(types, modelLoader, sparqlEndpoint)
       generateClasses(attributesPerType)
     }
   }
@@ -59,8 +59,8 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
     case None => sparqlEndpoint.getOrElse(pathToGenerate + "/data.ttl")
   }
 
-  private def getTypes(model: Model): List[String] = {
-    val resultSet = doSparqlQuery(model, loadFromResources("getTypes.sparql"))
+  private def getTypes(model: () => Model, sparqlEndpoint: Option[String]): List[String] = {
+    val resultSet = doSparqlQuery(loadFromResources("getTypes.sparql"), model, sparqlEndpoint)
     val types = mutable.ListBuffer[String]()
     while(resultSet.hasNext) {
       val results = resultSet.next()
@@ -73,8 +73,8 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
     if(staticExploitation) {
       createMappingRulesAnalyser.getSubjectPrefix(theType)
     } else {
-      val model = loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
-      val resultSet = doSparqlQuery(model, loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType))
+      def model = () => loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
+      val resultSet = doSparqlQuery(loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType), model, sparqlEndpoint)
       val result = resultSet.next()
       val uri = result.get("subject").asResource().getURI
       getPrefixes(finalPath).find(p => uri.startsWith(p._2)).head._2
@@ -82,10 +82,10 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
 
   }
 
-  private def getAttributesPerType(types: List[String], model: Model): Map[String, List[DataTypedPredicate]] = {
+  private def getAttributesPerType(types: List[String], model: () => Model, sparqlEndpoint: Option[String]): Map[String, List[DataTypedPredicate]] = {
     types.map(t => {
       val sparql = loadFromResources("getPredicatesByType.sparql").replaceFirst("\\$type", t)
-      val resultSet = doSparqlQuery(model, sparql)
+      val resultSet = doSparqlQuery(sparql, model, sparqlEndpoint)
       val attributes = mutable.ListBuffer[DataTypedPredicate]()
       while(resultSet.hasNext) {
         // Predicate
@@ -96,14 +96,14 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
         val dataTypeSparql = loadFromResources("getDataTypeForPredicate.sparql")
           .replaceFirst("\\$type", t)
           .replaceFirst("\\$predicate", predicate)
-        val dataTypeResultSet = doSparqlQuery(model, dataTypeSparql)
+        val dataTypeResultSet = doSparqlQuery(dataTypeSparql, model, sparqlEndpoint)
         val theObject = dataTypeResultSet.next().get("object")
 
         // Cardinality
         val cardinalitySparql = loadFromResources("getCardinalityForPredicate.sparql")
           .replaceFirst("\\$type", t)
           .replaceFirst("\\$predicate", predicate)
-        val cardinalityResultSet = doSparqlQuery(model, cardinalitySparql)
+        val cardinalityResultSet = doSparqlQuery(cardinalitySparql, model, sparqlEndpoint)
         val objectCardinality = Try(cardinalityResultSet.next().get("cardinality").asLiteral().getInt) match {
           case Success(value) => value
           case Failure(exception) => 0
@@ -124,12 +124,9 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
     }).toMap
   }
 
-  private def doSparqlQuery(model: Model, sparql: String): ResultSet = {
-    val query = QueryFactory.create(sparql)
-    val queryExecution = QueryExecutionFactory.create(query, model)
-    val resultSet = ResultSetFactory.copyResults(queryExecution.execSelect())
-    queryExecution.close()
-    resultSet
+  private def doSparqlQuery(sparql: String, model: () => Model, sparqlEndpoint: Option[String]): ResultSet = {
+    val queryExecution = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, model)
+    queryExecution.execute()
   }
 
   private def resourceToCapitalizedName(resource: Resource): String = {
