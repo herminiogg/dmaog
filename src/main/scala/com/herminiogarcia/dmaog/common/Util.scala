@@ -17,6 +17,10 @@ object Util {
     path.contains("http://") || path.contains("https://")
   }
 
+  def getFinalPathToGenerate(pathToGenerate: String): String = {
+    if(pathToGenerate.endsWith("/")) pathToGenerate + "data.ttl" else pathToGenerate + "/" + "data.ttl"
+  }
+
   def convertToJavaDataType(datatype: RDFDatatype): String = datatype match {
     case XSDDatatype.XSDinteger => "Integer"
     case XSDDatatype.XSDint => "Integer"
