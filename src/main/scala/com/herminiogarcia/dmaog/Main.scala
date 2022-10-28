@@ -33,6 +33,9 @@ class Main extends Callable[Int] {
   @Option(names = Array("-o", "--output"), required = true, description = Array("Path where to generate the output files"))
   private var outputPath: String = ""
 
+  @Option(names = Array("-d", "--datafile"), description = Array("Path where the datafile is located if no mapping rules are provided."))
+  private var datafile: String = null
+
   @Option(names = Array("-se", "--sparqlEndpoint"), description = Array("URL pointing to the SPARQL endpoint"))
   private var sparqlEndpoint: String = null
 
@@ -61,7 +64,7 @@ class Main extends Callable[Int] {
       new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName,
         scala.Option(username), scala.Option(password), scala.Option(drivers),
         scala.Option(sparqlEndpoint), scala.Option(sparqlEndpointUsername), 
-        scala.Option(sparqlEndpointPassword), staticMappingRulesExploitation).generate()
+        scala.Option(sparqlEndpointPassword), scala.Option(datafile), staticMappingRulesExploitation).generate()
       1 // well finished
     } finally { fileHandler.foreach(_.close()) }
   }

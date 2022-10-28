@@ -1,7 +1,7 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
-import com.herminiogarcia.dmaog.common.Util.convertToJavaDataType
-import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication, Util, WriterFactory, QueryExecutor}
+import com.herminiogarcia.dmaog.common.Util.{convertToJavaDataType, getFinalPathToGenerate}
+import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication, Util, WriterFactory}
 import com.herminiogarcia.shexml.MappingLauncher
 import org.apache.http.auth.AUTH
 import org.apache.jena.datatypes.RDFDatatype
@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathToGenerate: String, packageName: String,
                    username: Option[String], password: Option[String], drivers: Option[String],
                     sparqlEndpoint: Option[String], sparqlEndpointUsername: Option[String],
-                    sparqlEndpointPassword: Option[String],
+                    sparqlEndpointPassword: Option[String], datafile: Option[String],
                     staticExploitation: Boolean = false) extends ResourceLoader
         with ModelLoader with PrefixedNameConverter with MappingRulesRunner with SPARQLAuthentication {
 
@@ -37,13 +37,13 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       val finalAttributesPerType = types.map {
         case (k, v) => v -> attributesPerType(k)
       }
-      generateClasses(finalAttributesPerType)
+      generateClasses(finalAttributesPerType, getFinalPathToGenerate(pathToGenerate))
     } else {
       val pathToRDF = generateData()
       def modelLoader = () => loadModel(pathToRDF, None, null, None, username, password, drivers, sparqlEndpoint)
       val types = getTypes(modelLoader, sparqlEndpoint)
       val attributesPerType = getAttributesPerType(types, modelLoader, sparqlEndpoint)
-      generateClasses(attributesPerType)
+      generateClasses(attributesPerType, pathToRDF)
     }
   }
 
@@ -56,8 +56,10 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       temporalModel.read(new ByteArrayInputStream(result.getBytes), null, "TTL")
       temporalModel.getNsPrefixMap.forEach { case (k, v) => namespaces += (k -> v) }
       WriterFactory.getWriter(pathToGenerate, sparqlEndpoint).write(result)
-    case None => sparqlEndpoint.getOrElse(pathToGenerate + "/data.ttl")
+    case None => sparqlEndpoint.getOrElse(datafile.getOrElse(getFinalPathToGenerate(pathToGenerate)))
   }
+
+
 
   private def getTypes(model: () => Model, sparqlEndpoint: Option[String]): List[String] = {
     val resultSet = doSparqlQuery(loadFromResources("getTypes.sparql"), model, sparqlEndpoint)
@@ -76,8 +78,12 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       def model = () => loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
       val resultSet = doSparqlQuery(loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType), model, sparqlEndpoint)
       val result = resultSet.next()
-      val uri = result.get("subject").asResource().getURI
-      getPrefixes(finalPath).find(p => uri.startsWith(p._2)).head._2
+      val subjectResult = result.get("subject")
+      //if(subjectResult.isAnon) ""
+      //else {
+        val uri = subjectResult.asResource().getURI
+        getPrefixes(finalPath).find(p => uri.startsWith(p._2)).head._2
+      //}
     }
 
   }
@@ -135,9 +141,8 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
     prefixName + localName
   }
 
-  private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]]): Unit = {
+  private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]], finalPath: String): Unit = {
     val rdfsType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
-    val finalPath = if(pathToGenerate.endsWith("/")) pathToGenerate + "data.ttl" else pathToGenerate + "/" + "data.ttl"
     val prefixes = getPrefixes(finalPath)
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {

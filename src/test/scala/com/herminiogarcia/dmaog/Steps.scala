@@ -9,6 +9,7 @@ class Steps extends Sequential(
   new FilmServiceTest,
   new FilmAndActorCodeGenerationTest,
   new DataAccessSingletonTest,
+  new FilmCodeGenerationFromURLDataTest,
 
   new FilmDataAccessTest,
   new FilmDataAccessRDFTest,
