@@ -1,6 +1,7 @@
 package com.herminiogarcia.dmaog.dataAccess
 
-import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, ResourceLoader, SPARQLAuthentication, QueryExecutorFactory, QueryExecutor}
+import com.herminiogarcia.dmaog.common.DatesConverter.{convertDateToJavaDate, isDate}
+import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, DatesConverter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication}
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet, ResultSetFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
@@ -11,7 +12,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import java.util.Optional
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
@@ -238,7 +239,13 @@ class DataAccess(fileNameForGeneratedContent: String,
     if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) {
       val outputStream = new ByteArrayOutputStream()
       model.write(outputStream, "Turtle")
-      DataLocalFileWriter(fileNameForGeneratedContent.replaceFirst("/data.ttl", "")).write(outputStream.toString)
+      val parts = fileNameForGeneratedContent.split("/")
+      val path = parts.slice(0, parts.length - 1).mkString("/")
+      val filename = parts(parts.length - 1)
+      {
+        if(filename == "data.ttl") DataLocalFileWriter(path)
+        else DataLocalFileWriter(path, filename)
+      }.write(outputStream.toString)
       System.out.println("WARN: Updating on local disk is not meant for production environments and should be used only for testing purposes")
     }
   }
@@ -297,7 +304,7 @@ class DataAccess(fileNameForGeneratedContent: String,
     else if(value.isInstanceOf[java.time.LocalTime]) XSDDatatype.XSDtime
     else if(value.isInstanceOf[java.time.LocalDate]) XSDDatatype.XSDdate
     else if(value.isInstanceOf[java.time.LocalDateTime]) XSDDatatype.XSDdateTime
-    else if(value.isInstanceOf[java.util.Date]) XSDDatatype.XSDdateTimeStamp
+    else if(value.isInstanceOf[java.time.ZonedDateTime]) XSDDatatype.XSDdateTimeStamp
     else if(value.isInstanceOf[java.time.Year]) XSDDatatype.XSDgYear
     else if(value.isInstanceOf[java.time.Month]) XSDDatatype.XSDgMonth
     else if(value.isInstanceOf[java.time.YearMonth]) XSDDatatype.XSDgYearMonth
@@ -368,7 +375,11 @@ class DataAccess(fileNameForGeneratedContent: String,
             invokeSetterOrAddToList(m, getterMethod, instance,
               new MultilingualString(attribute._2.value, attribute._2.asInstanceOf[MultilingualStringResult].langtag), isList)
           } else {
-            if(setterParameterType.getMethods.exists(_.getName == "valueOf") && setterParameterType != classOf[String]) {
+            if(isDate(setterParameterType.getName)) {
+              val convertedValue = convertDateToJavaDate(setterParameterType.getName, value)
+              invokeSetterOrAddToList(m, getterMethod, instance, convertedValue, isList)
+            }
+            else if(setterParameterType.getMethods.exists(_.getName == "valueOf") && setterParameterType != classOf[String]) {
               val numericConversion = setterParameterType.getMethod("valueOf", classOf[String])
               val parsedValue = Try(numericConversion.invoke(setterParameterType, value)).getOrElse("null")
               invokeSetterOrAddToList(m, getterMethod, instance, parsedValue, isList)

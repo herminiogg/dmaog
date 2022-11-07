@@ -1,0 +1,13 @@
+@prefix : <http://example.com/> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+:1  a :TestDataTypes ;
+    :date "2022-11-04"^^xsd:date ;
+    :dateTime "2022-11-04T15:07:02"^^xsd:dateTime ;
+    :dateTimeStamp "2022-11-04T15:07:02Z"^^xsd:dateTimeStamp ;
+    :time "23:02:01"^^xsd:time ;
+    :year "2022"^^xsd:gYear ;
+    :month "--11"^^xsd:gMonth ;
+    :yearMonth "2022-11"^^xsd:gYearMonth ;
+    :monthDay "--11-04"^^xsd:gMonthDay ;
+    :day "---04"^^xsd:gDay .

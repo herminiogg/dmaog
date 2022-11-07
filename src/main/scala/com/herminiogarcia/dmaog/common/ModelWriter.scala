@@ -19,9 +19,9 @@ sealed trait Writer {
   def write(result: String): String
 }
 
-case class DataLocalFileWriter(override val pathToGenerate: String) extends Writer {
+case class DataLocalFileWriter(override val pathToGenerate: String, filename: String = "data.ttl") extends Writer {
   def write(result: String): String = {
-    Util.writeFile(pathToGenerate, "data.ttl", result)
+    Util.writeFile(pathToGenerate, filename, result)
     getFinalPathToGenerate(pathToGenerate)
   }
 }
