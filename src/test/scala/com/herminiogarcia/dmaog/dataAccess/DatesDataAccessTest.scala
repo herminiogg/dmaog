@@ -28,14 +28,14 @@ class DatesDataAccessTest extends AnyFunSuite with RDFStatementCreator {
   def testData(): Unit = {
     val item = testDataTypesService.getById("1").get()
 
-    assert(item.getDate.get(0).equals(LocalDate.of(2022, 11, 04)))
+    assert(item.getDate.get(0).equals(LocalDate.of(2022, 11, 4)))
 
-    assert(item.getDateTime.get(0).equals(LocalDateTime.of(2022, 11, 04, 15, 07, 02)))
+    assert(item.getDateTime.get(0).equals(LocalDateTime.of(2022, 11, 4, 15, 7, 2)))
 
     val date = ZonedDateTime.parse("2022-11-04T15:07:02Z")
     assert(item.getDateTimeStamp.get(0).equals(date))
 
-    assert(item.getTime.get(0).equals(LocalTime.of(23, 02, 01)))
+    assert(item.getTime.get(0).equals(LocalTime.of(23, 2, 1)))
 
     assert(item.getYear.get(0).equals(Year.of(2022)))
 
@@ -43,7 +43,7 @@ class DatesDataAccessTest extends AnyFunSuite with RDFStatementCreator {
 
     assert(item.getYearMonth.get(0).equals(YearMonth.of(2022, 11)))
 
-    assert(item.getMonthDay.get(0).equals(MonthDay.of(11, 04)))
+    assert(item.getMonthDay.get(0).equals(MonthDay.of(11, 4)))
 
     assert(item.getDay.get(0).equals("---04"))
   }
