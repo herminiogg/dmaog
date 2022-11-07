@@ -40,13 +40,13 @@ object Util {
     case XSDDatatype.XSDboolean => "Boolean"
     case XSDDatatype.XSDdate => "java.time.LocalDate"
     case XSDDatatype.XSDdateTime => "java.time.LocalDateTime"
-    case XSDDatatype.XSDdateTimeStamp => "java.util.Date"
+    case XSDDatatype.XSDdateTimeStamp => "java.time.ZonedDateTime"
     case XSDDatatype.XSDtime => "java.time.LocalTime"
     case XSDDatatype.XSDgYear => "java.time.Year"
-    case XSDDatatype.XSDgMonth => "java.time.Month"
+    case XSDDatatype.XSDgMonth => "String"
     case XSDDatatype.XSDgYearMonth => "java.time.YearMonth"
     case XSDDatatype.XSDgMonthDay => "java.time.MonthDay"
-    case XSDDatatype.XSDgDay => "java.time.DayOfWeek"
+    case XSDDatatype.XSDgDay => "String"
     case XSDDatatype.XSDanyURI => "java.net.URI"
     case _ => throw new Exception("Impossible to convert the type " + datatype.getURI + " to a Java type")
   }
