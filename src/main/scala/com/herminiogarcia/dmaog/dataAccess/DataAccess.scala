@@ -12,7 +12,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import java.util.Optional
-import scala.collection.JavaConverters.*
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
@@ -242,10 +242,10 @@ class DataAccess(fileNameForGeneratedContent: String,
       val parts = fileNameForGeneratedContent.split("/")
       val path = parts.slice(0, parts.length - 1).mkString("/")
       val filename = parts(parts.length - 1)
-      {
+      val dataLocalFileWriter =
         if(filename == "data.ttl") DataLocalFileWriter(path)
         else DataLocalFileWriter(path, filename)
-      }.write(outputStream.toString)
+      dataLocalFileWriter.write(outputStream.toString)
       System.out.println("WARN: Updating on local disk is not meant for production environments and should be used only for testing purposes")
     }
   }
