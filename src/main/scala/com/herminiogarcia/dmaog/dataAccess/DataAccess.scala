@@ -1,7 +1,7 @@
 package com.herminiogarcia.dmaog.dataAccess
 
 import com.herminiogarcia.dmaog.common.DatesConverter.{convertDateToJavaDate, isDate}
-import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, DatesConverter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication}
+import com.herminiogarcia.dmaog.common.{BNode, DataLocalFileWriter, DatesConverter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication}
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet, ResultSetFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
@@ -12,7 +12,7 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
 import java.util.Optional
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
@@ -41,7 +41,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   def getAll[T](theClass: Class[T]): util.List[T] = {
     getRDFType(theClass).map(t => {
       val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", t)
-      def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
+      def getSubject: QuerySolution => String = getSubjectWhenBNodePossible
       def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
       val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
       populateObjects(groupedBySubjectResults, theClass).asJava
@@ -52,7 +52,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   def getAll[T](theClass: Class[T], rdfFormat: String): String = {
     getRDFType(theClass).map(t => {
       val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", t)
-      def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
+      def getSubject: QuerySolution => String = getSubjectWhenBNodePossible
       def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
       val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
       generateRDF(groupedBySubjectResults, rdfFormat)
@@ -65,7 +65,7 @@ class DataAccess(fileNameForGeneratedContent: String,
         .replaceFirst("\\$type", t)
         .replaceFirst("\\$limit", limit.toString)
         .replaceFirst("\\$offset", offset.toString)
-      def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
+      def getSubject: QuerySolution => String = getSubjectWhenBNodePossible
       def getPredicate: QuerySolution => String = r => "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
       val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
       groupedBySubjectResults.keys
@@ -100,6 +100,7 @@ class DataAccess(fileNameForGeneratedContent: String,
           (theObject.asLiteral().getLanguage.nonEmpty || theObject.asLiteral().getDatatypeURI == "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"))
           MultilingualStringResult(theObject.asLiteral().getString, theObject.asLiteral().getLanguage)
         else if(theObject.isLiteral) LiteralResult(theObject.asLiteral().getString)
+        else if(theObject.isAnon) BNodeResult(theObject.asResource().getId.getBlankNodeId.getLabelString)
         else IRIResult(theObject.asResource().getURI)
       }
       groupedBySubjectResults.get(subject) match {
@@ -254,7 +255,10 @@ class DataAccess(fileNameForGeneratedContent: String,
     val methods = instance.getClass.getMethods.toList
 
     val typeURI = instance.getClass.getField("rdfType").get(instance).asInstanceOf[String]
-    val subjectURI = methods.find(_.getName == "getId").get.invoke(instance).asInstanceOf[IRIValue].iri
+    val subjectInstance = methods.find(_.getName == "getId").get.invoke(instance)
+    val subjectURI =
+      if(subjectInstance.isInstanceOf[BNode]) "_:" + subjectInstance.asInstanceOf[BNode].value
+      else "<" + subjectInstance.asInstanceOf[IRIValue].iri + ">"
 
     val triples = methods.filterNot(m => m.getName.equals("getClass") || m.getName.equals("getId"))
         .filter(m => "get.*".r.findPrefixOf(m.getName).isDefined).flatMap(m => {
@@ -268,6 +272,7 @@ class DataAccess(fileNameForGeneratedContent: String,
       val values2 = values.map(v => {
         val objectTriple = {
           if(v.isInstanceOf[IRIValue]) Option("<" + v.asInstanceOf[IRIValue].iri + ">")
+          else if(v.isInstanceOf[BNode]) Option("_:" + v.asInstanceOf[BNode].value)
           else if(v.isInstanceOf[MultilingualString])
             Option("\"" + v.asInstanceOf[MultilingualString].value + "\"" +"@" + v.asInstanceOf[MultilingualString].langTag)
           else if(v != null) Option("\"" + v.toString + "\"" +"^^<" + getXSDType(v).getURI + ">")
@@ -275,7 +280,7 @@ class DataAccess(fileNameForGeneratedContent: String,
         }
         objectTriple.flatMap(ot => fieldURI.map(f => {
           val objectValueOrVariable = if(isInsert) ot else "?" + capitalizedFieldName
-          val subjectURIOrVariable = if(isInsert) "<" + subjectURI + ">" else "?id"
+          val subjectURIOrVariable = if(isInsert) subjectURI else "?id"
           subjectURIOrVariable + " <" + f + "> " + objectValueOrVariable
         }))
       })
@@ -283,13 +288,17 @@ class DataAccess(fileNameForGeneratedContent: String,
 
     }).filter(_.isDefined).map(_.get).mkString("")
 
-    val subjectURIOrVariable = if(isInsert) "<" + subjectURI + ">" else "?id"
+    val subjectURIOrVariable = if(isInsert) subjectURI else "?id"
     subjectURIOrVariable + " a <" + typeURI + "> .\n" + triples
   }
 
   private def getIdValue[T](instance: T): String = {
     val method = instance.getClass.getMethods.toList.find(_.getName.equals("getId"))
-    method.map(_.invoke(instance).asInstanceOf[IRIValue].iri) match {
+    method.map(m => {
+      val result = m.invoke(instance)
+      if(result.isInstanceOf[BNode]) result.asInstanceOf[BNode].value
+      else result.asInstanceOf[IRIValue].iri
+    }) match {
       case Some(value) => value
       case None => throw new Exception("The class " + instance.getClass.getName + "does not have an id attribute. Try to regenerate the code!")
     }
@@ -357,12 +366,11 @@ class DataAccess(fileNameForGeneratedContent: String,
       val results = groupedBySubjectResults(key)
       val instance = theClass.newInstance()
       val methods = instance.getClass.getMethods
-      methods.filter(_.getName == "setId").head.invoke(instance, createIRIValue(key, model))
+      invokeSetId(methods.filter(_.getName == "setId").head, key, model, instance)
       for(attribute <- results) {
         val attributeName = prefixedNameConverterFunc(attribute._1).capitalize
         val setterName = "set" + attributeName
         val getterName = "get" + attributeName
-        val value = prefixedValueConverterFunc(attribute._2.value)
         methods.find(_.getName == setterName).foreach(m => {
           val getterMethod = methods.find(_.getName == getterName).headOption
           val isList = m.getParameterTypes.head == classOf[util.List[Object]]
@@ -371,10 +379,13 @@ class DataAccess(fileNameForGeneratedContent: String,
             else m.getGenericParameterTypes.head.asInstanceOf[ParameterizedType].getActualTypeArguments.headOption.map(_.asInstanceOf[Class[_]]).get
           if(setterParameterType == classOf[IRIValue]) {
             invokeSetterOrAddToList(m, getterMethod, instance, createIRIValue(attribute._2.value, model), isList)
+          } else if(setterParameterType == classOf[BNode]) {
+            invokeSetterOrAddToList(m, getterMethod, instance, new BNode(attribute._2.value), isList)
           } else if(setterParameterType == classOf[MultilingualString]) {
             invokeSetterOrAddToList(m, getterMethod, instance,
               new MultilingualString(attribute._2.value, attribute._2.asInstanceOf[MultilingualStringResult].langtag), isList)
           } else {
+            val value = prefixedValueConverterFunc(attribute._2.value)
             if(isDate(setterParameterType.getName)) {
               val convertedValue = convertDateToJavaDate(setterParameterType.getName, value)
               invokeSetterOrAddToList(m, getterMethod, instance, convertedValue, isList)
@@ -393,6 +404,15 @@ class DataAccess(fileNameForGeneratedContent: String,
       instance
     }
     results.toList
+  }
+
+  private def invokeSetId[T](method: Method, value: String, model: Model, instance: T): Unit = {
+    val typeName = method.getParameterTypes.head.getName
+    val valueToSet =
+      if(typeName == "com.herminiogarcia.dmaog.common.IRIValue") createIRIValue(value, model)
+      else if(typeName == "com.herminiogarcia.dmaog.common.BNode") BNode(value)
+      else throw new Exception(s"Type $typeName for subject does not match IRIValue nor BNode")
+    method.invoke(instance, valueToSet)
   }
 
   private def invokeSetterOrAddToList[T, S](setter: Method, getter: Option[Method], instance: T, value: S, list: Boolean): Unit = {
@@ -464,6 +484,12 @@ class DataAccess(fileNameForGeneratedContent: String,
     RDFDataMgr.write(outputStream, modelToReturn, langValue)
     outputStream.toString
   }
+
+  def getSubjectWhenBNodePossible(querySolution: QuerySolution): String = {
+    val subject = querySolution.get("subject")
+    if(subject.isAnon) subject.asResource().getId.getLabelString
+    else subject.asResource().getURI
+  }
 }
 
 
@@ -473,4 +499,5 @@ sealed trait ObjectResult {
 
 case class LiteralResult(value: String) extends ObjectResult
 case class IRIResult(value: String) extends ObjectResult
+case class BNodeResult(value: String) extends ObjectResult
 case class MultilingualStringResult(value: String, langtag: String) extends ObjectResult

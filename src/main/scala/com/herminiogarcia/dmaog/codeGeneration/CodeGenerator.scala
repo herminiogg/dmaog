@@ -79,13 +79,12 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       val resultSet = doSparqlQuery(loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType), model, sparqlEndpoint)
       val result = resultSet.next()
       val subjectResult = result.get("subject")
-      //if(subjectResult.isAnon) ""
-      //else {
+      if(subjectResult.isAnon) ""
+      else {
         val uri = subjectResult.asResource().getURI
         getPrefixes(finalPath).find(p => uri.startsWith(p._2)).head._2
-      //}
+      }
     }
-
   }
 
   private def getAttributesPerType(types: List[String], model: () => Model, sparqlEndpoint: Option[String]): Map[String, List[DataTypedPredicate]] = {
@@ -122,6 +121,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
             "MultilingualString"
           else if(theObject.isLiteral)
             convertToJavaDataType(theObject.asLiteral().getDatatype) // TODO: loop the results to find the best type
+          else if(theObject.isAnon) "BNode"
           else "IRIValue"
         val dataTypeWithCardinality = if(objectCardinality > 1) "List<" + dataType + ">" else dataType
         attributes.append(new DataTypedPredicate(predicate, dataTypeWithCardinality))
@@ -149,7 +149,8 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       val capitalizedClassName = convertPrefixedNameFunction(t).capitalize
       // DTO class
       val classTemplate = loadFromResources("javaClassGeneric.java")
-      val attributes = attributesByType(t).filter(!_.predicate.equals(rdfsType)).:+(new DataTypedPredicate("id", "IRIValue"))
+      val idType = if(getSubjectByType(t, finalPath).isEmpty) "BNode" else "IRIValue"
+      val attributes = attributesByType(t).filter(!_.predicate.equals(rdfsType)).:+(new DataTypedPredicate("id", idType))
       val attributesDeclaration = attributes.map(a => generateAttributesCode("attribute.java", a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
       val getters = attributes.map(a => generateGetterSetterCode("getter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
       val setters = attributes.map(a => generateGetterSetterCode("setter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")

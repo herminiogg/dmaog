@@ -1,6 +1,6 @@
 package com.herminiogarcia.dmaog
 
-import com.herminiogarcia.dmaog.dataAccess.{DatesDataAccessTest, FilmDataAccessRDFTest, FilmDataAccessTest, FilmPaginationTest, LocalPersistanceUpdateTest, SparqlPersistanceAndDataAccessTest, SparqlPersistanceUpdateTest}
+import com.herminiogarcia.dmaog.dataAccess.{BNodeTest, DatesDataAccessTest, FilmDataAccessRDFTest, FilmDataAccessTest, FilmPaginationTest, LocalPersistanceUpdateTest, SparqlPersistanceAndDataAccessTest, SparqlPersistanceUpdateTest}
 import org.scalatest.Sequential
 
 class Steps extends Sequential(
@@ -12,10 +12,13 @@ class Steps extends Sequential(
   new FilmCodeGenerationFromURLDataTest,
   new DateTypesGenerationTest,
 
+  new BNodeTest,
+  
   new FilmDataAccessTest,
   new FilmDataAccessRDFTest,
   new LocalPersistanceUpdateTest,
   new FilmPaginationTest,
   new SparqlPersistanceAndDataAccessTest,
   new SparqlPersistanceUpdateTest,
-  new DatesDataAccessTest)
+  new DatesDataAccessTest
+)

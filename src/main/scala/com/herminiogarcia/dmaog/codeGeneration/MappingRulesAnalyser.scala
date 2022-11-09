@@ -3,7 +3,7 @@ package com.herminiogarcia.dmaog.codeGeneration
 import com.herminiogarcia.dmaog.common.DataTypedPredicate
 import com.herminiogarcia.dmaog.common.Util.convertToJavaDataType
 import com.herminiogarcia.shexml.MappingLauncher
-import com.herminiogarcia.shexml.ast.{AST, Action, DataTypeLiteral, Declaration, DeclarationStatement, LangTag, LiteralObject, LiteralObjectValue, LiteralSubject, ObjectElement, Prefix, ShExML, Shape, ShapeLink}
+import com.herminiogarcia.shexml.ast.{AST, Action, DataTypeLiteral, Declaration, DeclarationStatement, LangTag, LiteralObject, LiteralObjectValue, LiteralSubject, ObjectElement, Prefix, ShExML, Shape, ShapeLink, ShapeVar}
 import org.apache.jena.datatypes.{RDFDatatype, TypeMapper}
 import org.apache.jena.datatypes.xsd.XSDDatatype
 
@@ -62,13 +62,24 @@ case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesA
                 }
               case _=> generateTypeAccordingToPrefix(prefix, predicate, langTag)
             }.getOrElse(generateTypeAccordingToPrefix(prefix, predicate, langTag))
-            case ShapeLink(_) => new DataTypedPredicate(predicate, "List<IRIValue>")
+            case ShapeLink(shapeVar) => {
+              val shapeType = analyseShapeVarType(shapeVar)
+              new DataTypedPredicate(predicate, s"List<$shapeType>")
+            }
             case LiteralObject(_, _) => new DataTypedPredicate(predicate, "List<IRIValue>")
             case LiteralObjectValue(_) => new DataTypedPredicate(predicate, "List<String>")
           }
       })
       shape -> attributes
     }).toMap
+  }
+
+  private def analyseShapeVarType(shapeVar: ShapeVar): String = {
+    val shape = loadAST().shape.filter(_.shapeName.name == shapeVar.name)
+    shape.head.action match {
+      case Action(shapePrefix, _, _) => if(shapePrefix == "_:") "BNode" else "IRIValue"
+      case LiteralSubject(prefix, _) => if(prefix.name == "_:") "BNode" else "IRIValue"
+    }
   }
 
   private def generateTypeAccordingToPrefix(prefix: String, predicate: String, langTag: Option[LangTag]): DataTypedPredicate = {
@@ -85,7 +96,10 @@ case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesA
 
   def getSubjectPrefix(theType: String) = {
     getTypes().find(_._2 == theType).get._1.action match {
-      case Action(shapePrefix, _, _) => getPrefixes().find(_._1 == shapePrefix).get._2
+      case Action(shapePrefix, _, _) => {
+        if(shapePrefix == "_:") ""
+        else getPrefixes().find(_._1 == shapePrefix).get._2
+      }
       case LiteralSubject(prefix, _) => getPrefixes().find(_._1 == prefix.name).get._2
     }
   }

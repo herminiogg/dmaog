@@ -40,11 +40,16 @@ case class DataSparqlEndpointWriter(override val pathToGenerate: String) extends
     val template = loadFromResources("insertData.sparql")
 
     val formattedTriples = triples.map(t => {
-      convertURIToPrefixedValue(t.getSubject.getURI, prefixes) + " " +
+      val subject =
+        if(t.getSubject.isAnon) "_:" + t.getSubject.asResource().getId.getBlankNodeId.getLabelString
+        else convertURIToPrefixedValue(t.getSubject.getURI, prefixes)
+
+      subject + " " +
         convertURIToPrefixedValue(t.getPredicate.getURI, prefixes) + " " + {
         if(t.getObject.isLiteral && t.getObject.asLiteral().getLanguage.nonEmpty)
           "\"" + t.getObject.asLiteral().getString + "\"" +"@" + t.getObject.asLiteral().getLanguage
         else if(t.getObject.isLiteral) "\"" + t.getLiteral.getString + "\"" +"^^<" + t.getLiteral.getDatatype.getURI + ">"
+        else if(t.getObject.isAnon) "_:" + t.getObject.asResource().getId.getBlankNodeId.getLabelString
         else convertURIToPrefixedValue(t.getObject.asResource().getURI, prefixes) + " "
       } + " ."
     }).mkString("\n")
