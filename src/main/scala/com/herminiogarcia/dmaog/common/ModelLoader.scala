@@ -1,6 +1,5 @@
 package com.herminiogarcia.dmaog.common
 
-import com.sun.xml.internal.messaging.saaj.util.ByteInputStream
 import org.apache.jena.query.{QueryExecutionFactory, QueryFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory}
 import org.apache.jena.riot.RDFDataMgr

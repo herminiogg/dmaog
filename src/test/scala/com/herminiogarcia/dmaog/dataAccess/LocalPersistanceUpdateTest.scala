@@ -66,7 +66,7 @@ class LocalPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
   def generateClasses(): Unit = {
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
-      None, None, None, None).generate()
+      None, None, None, None, None, None, None).generate()
   }
 
   test("Updating a field works as expected") {

@@ -1,6 +1,7 @@
 package com.herminiogarcia.dmaog.dataAccess
 
-import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, ResourceLoader}
+import com.herminiogarcia.dmaog.common.DatesConverter.{convertDateToJavaDate, isDate}
+import com.herminiogarcia.dmaog.common.{DataLocalFileWriter, DatesConverter, IRIValue, ModelLoader, MultilingualString, PrefixedNameConverter, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication}
 import org.apache.jena.datatypes.xsd.XSDDatatype
 import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, QueryFactory, QuerySolution, ResultSet, ResultSetFactory}
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
@@ -23,7 +24,14 @@ class DataAccess(fileNameForGeneratedContent: String,
                  password: String = null,
                  drivers: String = "",
                  sparqlEndpoint: String = "",
-                 prefixes: java.util.Map[String, String]) extends ResourceLoader with ModelLoader with PrefixedNameConverter {
+                 sparqlEndpointUsername: String = "",
+                 sparqlEndpointPassword: String = "",
+                 prefixes: java.util.Map[String, String]) extends ResourceLoader with ModelLoader
+                                with PrefixedNameConverter with SPARQLAuthentication {
+
+  initAuthenticationContext(sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword)
+
+  val sparqlEndpointOption = if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) Option.empty else Option(sparqlEndpoint)
 
   private val nsPrefixes: Map[String, String] = {
     val model = getModel
@@ -70,7 +78,7 @@ class DataAccess(fileNameForGeneratedContent: String,
     getRDFType(theClass).map(t => {
       val sparql = loadFromResources("countAll.sparql")
         .replaceFirst("\\$type", t)
-      val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, () => getModel).execute()
+      val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpointOption, () => getModel).execute()
       new java.lang.Long(resultSet.next().getLiteral("count").getLong)
     }).getOrElse(new java.lang.Long(0))
   }
@@ -78,7 +86,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   private def getGroupedStatements(sparql: String,
                                    getSubjectFunction: QuerySolution => String,
                                    getPredicateFunction: QuerySolution => String): Map[String, List[(String, ObjectResult)]] = {
-    val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, () => getModel).execute()
+    val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpointOption, () => getModel).execute()
     val groupedBySubjectResults = mutable.Map[String, List[(String, ObjectResult)]]()
     while(resultSet.hasNext) {
       val result = resultSet.next()
@@ -166,7 +174,7 @@ class DataAccess(fileNameForGeneratedContent: String,
       .replaceFirst("\\$type", theType)
       .replaceFirst("\\$fieldIRI", fullPredicateIRI)
       .replaceFirst("\\$value", getValueForSparqlQuery(value))
-    val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, () => getModel).execute()
+    val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpointOption, () => getModel).execute()
     val subjects = mutable.ListBuffer[String]()
     while(resultSet.hasNext) {
       val result = resultSet.next()
@@ -231,7 +239,13 @@ class DataAccess(fileNameForGeneratedContent: String,
     if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) {
       val outputStream = new ByteArrayOutputStream()
       model.write(outputStream, "Turtle")
-      DataLocalFileWriter(fileNameForGeneratedContent.replaceFirst("/data.ttl", "")).write(outputStream.toString)
+      val parts = fileNameForGeneratedContent.split("/")
+      val path = parts.slice(0, parts.length - 1).mkString("/")
+      val filename = parts(parts.length - 1)
+      val dataLocalFileWriter =
+        if(filename == "data.ttl") DataLocalFileWriter(path)
+        else DataLocalFileWriter(path, filename)
+      dataLocalFileWriter.write(outputStream.toString)
       System.out.println("WARN: Updating on local disk is not meant for production environments and should be used only for testing purposes")
     }
   }
@@ -287,6 +301,16 @@ class DataAccess(fileNameForGeneratedContent: String,
     else if(value.isInstanceOf[java.lang.Float]) XSDDatatype.XSDfloat
     else if(value.isInstanceOf[java.lang.Double]) XSDDatatype.XSDdouble
     else if(value.isInstanceOf[java.lang.Boolean]) XSDDatatype.XSDboolean
+    else if(value.isInstanceOf[java.time.LocalTime]) XSDDatatype.XSDtime
+    else if(value.isInstanceOf[java.time.LocalDate]) XSDDatatype.XSDdate
+    else if(value.isInstanceOf[java.time.LocalDateTime]) XSDDatatype.XSDdateTime
+    else if(value.isInstanceOf[java.time.ZonedDateTime]) XSDDatatype.XSDdateTimeStamp
+    else if(value.isInstanceOf[java.time.Year]) XSDDatatype.XSDgYear
+    else if(value.isInstanceOf[java.time.Month]) XSDDatatype.XSDgMonth
+    else if(value.isInstanceOf[java.time.YearMonth]) XSDDatatype.XSDgYearMonth
+    else if(value.isInstanceOf[java.time.MonthDay]) XSDDatatype.XSDgMonthDay
+    else if(value.isInstanceOf[java.time.DayOfWeek]) XSDDatatype.XSDgDay
+    else if(value.isInstanceOf[java.net.URI]) XSDDatatype.XSDanyURI
     else if(value.isInstanceOf[String]) XSDDatatype.XSDstring
     else throw new Exception("Impossible to convert type " + value + " to an XSDDatatype")
   }
@@ -304,7 +328,7 @@ class DataAccess(fileNameForGeneratedContent: String,
 
   private def getModel = {
     loadModel(fileNameForGeneratedContent, Option(mappingRules), Option(mappingLanguage),
-      Option(reloadMinutes), Option(username), Option(password), Option(drivers), Option(sparqlEndpoint))
+      Option(reloadMinutes), Option(username), Option(password), Option(drivers), sparqlEndpointOption)
   }
 
   private def getFullIRIForFieldName[T](theClass: Class[T], fieldName: String) = {
@@ -351,7 +375,11 @@ class DataAccess(fileNameForGeneratedContent: String,
             invokeSetterOrAddToList(m, getterMethod, instance,
               new MultilingualString(attribute._2.value, attribute._2.asInstanceOf[MultilingualStringResult].langtag), isList)
           } else {
-            if(setterParameterType.getMethods.exists(_.getName == "valueOf") && setterParameterType != classOf[String]) {
+            if(isDate(setterParameterType.getName)) {
+              val convertedValue = convertDateToJavaDate(setterParameterType.getName, value)
+              invokeSetterOrAddToList(m, getterMethod, instance, convertedValue, isList)
+            }
+            else if(setterParameterType.getMethods.exists(_.getName == "valueOf") && setterParameterType != classOf[String]) {
               val numericConversion = setterParameterType.getMethod("valueOf", classOf[String])
               val parsedValue = Try(numericConversion.invoke(setterParameterType, value)).getOrElse("null")
               invokeSetterOrAddToList(m, getterMethod, instance, parsedValue, isList)
@@ -438,38 +466,6 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 }
 
-object QueryExecutorFactory {
-  def getQueryExecutor(sparql: String, sparqlEndpoint: String, modelLoader: () => Model): QueryExecutor = {
-    if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) LocalFileQueryExecutor(modelLoader(), sparql)
-    else SparqlEndpointQueryExecutor(sparql, sparqlEndpoint)
-  }
-}
-
-sealed trait QueryExecutor {
-  val sparql: String
-
-  def execute(): ResultSet
-}
-
-case class LocalFileQueryExecutor(model: Model, sparql: String) extends QueryExecutor {
-  def execute(): ResultSet = {
-    val query = QueryFactory.create(sparql)
-    val queryExecution = QueryExecutionFactory.create(query, model)
-    val resultSet = ResultSetFactory.copyResults(queryExecution.execSelect())
-    queryExecution.close()
-    resultSet
-  }
-}
-
-case class SparqlEndpointQueryExecutor(sparql: String, endpoint: String) extends QueryExecutor {
-  def execute(): ResultSet = {
-    val query = QueryFactory.create(sparql)
-    val queryExecution = QueryExecutionFactory.sparqlService(endpoint, query)
-    val resultSet = ResultSetFactory.copyResults(queryExecution.execSelect())
-    queryExecution.close()
-    resultSet
-  }
-}
 
 sealed trait ObjectResult {
   val value: String

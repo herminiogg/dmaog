@@ -2,6 +2,7 @@ package com.herminiogarcia.dmaog.common
 
 import org.apache.jena.rdf.model.Statement
 import org.apache.jena.update.{UpdateExecutionFactory, UpdateFactory}
+import com.herminiogarcia.dmaog.common.Util._
 
 import scala.collection.JavaConverters.{asScalaIteratorConverter, mapAsScalaMapConverter}
 
@@ -18,10 +19,10 @@ sealed trait Writer {
   def write(result: String): String
 }
 
-case class DataLocalFileWriter(override val pathToGenerate: String) extends Writer {
+case class DataLocalFileWriter(override val pathToGenerate: String, filename: String = "data.ttl") extends Writer {
   def write(result: String): String = {
-    Util.writeFile(pathToGenerate, "data.ttl", result)
-    pathToGenerate + "/" + "data.ttl"
+    Util.writeFile(pathToGenerate, filename, result)
+    getFinalPathToGenerate(pathToGenerate)
   }
 }
 

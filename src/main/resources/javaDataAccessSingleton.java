@@ -15,6 +15,8 @@ public class DataAccessSingleton {
     private static String password;
     private static String drivers = "$drivers";
     private static String sparqlEndpoint = $sparqlEndpoint;
+    private static String sparqlEndpointUsername;
+    private static String sparqlEndpointPassword;
     private static Map<String, String> prefixes = new HashMap<String, String>() {{
         $prefixes
     }};
@@ -22,7 +24,7 @@ public class DataAccessSingleton {
     public static DataAccess getInstance() {
         if(dataAccess == null) {
             dataAccess = new DataAccess(dataFile, mappingRules, mappingLanguage, reloadMinutes,
-                    username, password, drivers, sparqlEndpoint, prefixes);
+                    username, password, drivers, sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword, prefixes);
         }
         return dataAccess;
     }

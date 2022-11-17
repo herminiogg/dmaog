@@ -29,10 +29,15 @@ section.
 
 # CLI
 ```
-Usage: dmaog [-hV] [--static] [-dr=<drivers>] [-m=<mappingRules>]
-             [-ml=<mappingLanguage>] -o=<outputPath> -p=<packageName>
-             [-ps=<password>] [-se=<sparqlEndpoint>] [-u=<username>]
+Usage: dmaog [-hV] [--static] [-d=<datafile>] [-dr=<drivers>]
+             [-m=<mappingRules>] [-ml=<mappingLanguage>] -o=<outputPath>
+             -p=<packageName> [-ps=<password>] [-se=<sparqlEndpoint>]
+             [-sep=<sparqlEndpointPassword>] [-seu=<sparqlEndpointUsername>]
+             [-u=<username>]
 Generate data access objects and services from your mapping rules.
+  -d, --datafile=<datafile>
+                  Path where the datafile is located if no mapping rules are
+                    provided.
       -dr, --drivers=<drivers>
                   Drivers string in case it is not included in ShExML
   -h, --help      Show this help message and exit.
@@ -48,16 +53,24 @@ Generate data access objects and services from your mapping rules.
                   Password in case of database connection
       -se, --sparqlEndpoint=<sparqlEndpoint>
                   URL pointing to the SPARQL endpoint
+      -sep, --sparqlEndpointPassword=<sparqlEndpointPassword>
+                  Password for the SPARQL endpoint
+      -seu, --sparqlEndpointUsername=<sparqlEndpointUsername>
+                  Username for the SPARQL endpoint
       --static    Exploit mapping rules without executing them
   -u, --username=<username>
                   Username in case of database connection
   -V, --version   Print version information and exit.
+Disconnected from the target VM, address: '127.0.0.1:58786', transport: 'socket'
+
+Process finished with exit code 2
+
 ```
 
 # Supported features
 * Generation of data against files and SPARQL endpoints
 * Using already existing data files and SPARQL endpoints without mapping rules
-* Update actions on files and SPARQL endpoints (without authentication)
+* Update actions on files and SPARQL endpoints (authentication included)
 * Static analysis of ShExML rules (not need to run the mapping rules to generate classes)
 * Multilingual strings
 * Pagination of the results
@@ -79,6 +92,6 @@ as create or update method.
 * delete(Type instance) -> Deletes the instance in the data store.
 
 # Future work
-* Support for authentication on update actions against SPARQL endpoints
+* Handling Blank Nodes
 * Possibility to use Shapes for code generation
 * Static analysis of RML rules

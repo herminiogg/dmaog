@@ -12,9 +12,9 @@ jobs:
       - name: Set up JDK 8
         uses: actions/setup-java@v2
         with:
-          java-version: '8'
+          java-version: '11'
           distribution: 'adopt'
       - name: Set up Fuseki
-        run: docker run --rm -d -p 3030:3030 atomgraph/fuseki --mem /example
+        run: echo root:root > confFuseki.txt && docker run --rm -d -v /home/runner/work/dmaog/dmaog:/dmaog/. -p 3030:3030 atomgraph/fuseki --passwd=/dmaog/confFuseki.txt --mem=/example
       - name: Run tests
         run: sbt "+ test"

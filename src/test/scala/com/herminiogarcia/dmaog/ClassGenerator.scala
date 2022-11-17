@@ -8,11 +8,11 @@ trait ClassGenerator {
 
   val rules: String
 
-  def generateClasses(static: Boolean = false): Unit = {
+  def generateClasses(static: Boolean = false, pathToData: Option[String] = Option.empty): Unit = {
     removeDirContent()
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
-      None, None, None, None, static).generate()
+      None, None, None, None, None, None, pathToData, static).generate()
   }
 
   def removeDirContent(): Unit = {
