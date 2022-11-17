@@ -16,7 +16,7 @@ object Main {
 
 }
 
-@Command(name = "dmaog", version = Array("v0.1.2"),
+@Command(name = "dmaog", version = Array("v0.1.3"),
   mixinStandardHelpOptions = true,
   description = Array("Generate data access objects and services from your mapping rules."))
 class Main extends Callable[Int] {

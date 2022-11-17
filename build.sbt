@@ -4,7 +4,7 @@ lazy val dmaog = project
   .in(file("."))
   .settings(
     name := "DMAOG",
-    version := "0.1.2",
+    version := "0.1.3",
     scalaVersion := "3.2.0",
     crossScalaVersions := Seq("2.12.17", "2.13.9", "3.2.0"),
     libraryDependencies ++= Seq(
