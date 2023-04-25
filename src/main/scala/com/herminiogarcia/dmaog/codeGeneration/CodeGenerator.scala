@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathToGenerate: String, packageName: String,
                    username: Option[String], password: Option[String], drivers: Option[String],
                     sparqlEndpoint: Option[String], sparqlEndpointUsername: Option[String],
-                    sparqlEndpointPassword: Option[String], datafile: Option[String],
+                    sparqlEndpointPassword: Option[String], sparqlQueryLimit: Option[String], datafile: Option[String],
                     staticExploitation: Boolean = false) extends ResourceLoader
         with ModelLoader with PrefixedNameConverter with MappingRulesRunner with SPARQLAuthentication {
 
@@ -131,8 +131,15 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
   }
 
   private def doSparqlQuery(sparql: String, model: () => Model, sparqlEndpoint: Option[String]): ResultSet = {
-    val queryExecution = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, model)
-    queryExecution.execute()
+    val finalSparqlQuery = sparql + sparqlQueryLimit.map(" LIMIT " + _).getOrElse("")
+    val queryExecution = QueryExecutorFactory.getQueryExecutor(finalSparqlQuery, sparqlEndpoint, model)
+    val result = Try(queryExecution.execute())
+    result match {
+      case Failure(e) =>
+        Thread.sleep(60000) //wait for a minute and try the query again
+        queryExecution.execute()
+      case Success(s) => s
+    }
   }
 
   private def resourceToCapitalizedName(resource: Resource): String = {

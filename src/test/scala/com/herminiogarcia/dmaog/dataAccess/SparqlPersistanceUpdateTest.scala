@@ -69,7 +69,7 @@ class SparqlPersistanceUpdateTest extends AnyFunSuite with BeforeAndAfter {
   def generateClasses(): Unit = {
     new File("./tmp").mkdir() //create temp directory for tests
     new CodeGenerator(Option(rules), "shexml", "./tmp/", "com.example",
-      None, None, None, Some("http://localhost:3030/example"), Some("root"), Some("root"), None).generate()
+      None, None, None, Some("http://localhost:3030/example"), Some("root"), Some("root"), None, None).generate()
   }
 
   test("Updating a field works as expected") {
