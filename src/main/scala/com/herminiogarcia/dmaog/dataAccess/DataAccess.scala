@@ -328,7 +328,7 @@ class DataAccess(fileNameForGeneratedContent: String,
 
   private def getModel = {
     loadModel(fileNameForGeneratedContent, Option(mappingRules), Option(mappingLanguage),
-      Option(reloadMinutes), Option(username), Option(password), Option(drivers), sparqlEndpointOption)
+      Option(reloadMinutes), Option(username), Option(password), Option(drivers), sparqlEndpointOption, Option("1"))
   }
 
   private def getFullIRIForFieldName[T](theClass: Class[T], fieldName: String) = {

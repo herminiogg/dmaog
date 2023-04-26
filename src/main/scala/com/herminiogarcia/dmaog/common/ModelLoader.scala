@@ -18,33 +18,33 @@ trait ModelLoader extends MappingRulesRunner {
 
   protected def loadModel(pathToRDF: String, mappingRules: Option[String], mappingLanguage: Option[String],
                           reloadMinutes: Option[Long], username: Option[String], password: Option[String],
-                          drivers: Option[String], sparqlEndpoint: Option[String]): Model = mappingRules match {
+                          drivers: Option[String], sparqlEndpoint: Option[String], sparqlQueryLimit: Option[String] = None): Model = mappingRules match {
     case Some(rules) =>
       if(sparqlEndpoint.isDefined) throw new Exception("It is not possible to update triple store contents")
-      if(!new File(pathToRDF).exists()) applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"), username, password, drivers, sparqlEndpoint)
+      if(!new File(pathToRDF).exists()) applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"), username, password, drivers, sparqlEndpoint, sparqlQueryLimit)
       else reloadMinutes match {
         case Some(minutes) =>
           val modifiedTime = new File(pathToRDF).lastModified()
           val currentTime = new Date().getTime
           val reloadMillis = minutes * 60 * 1000
           if((currentTime - modifiedTime) > reloadMillis) {
-            applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"), username, password, drivers, sparqlEndpoint)
+            applyMappingRules(pathToRDF, rules, mappingLanguage.getOrElse("shexml"), username, password, drivers, sparqlEndpoint, sparqlQueryLimit)
           } else {
-            loadExistingModel(pathToRDF, sparqlEndpoint)
+            loadExistingModel(pathToRDF, sparqlEndpoint, sparqlQueryLimit)
           }
-        case None => loadExistingModel(pathToRDF, sparqlEndpoint)
+        case None => loadExistingModel(pathToRDF, sparqlEndpoint, sparqlQueryLimit)
       }
-    case None => loadExistingModel(pathToRDF, sparqlEndpoint)
+    case None => loadExistingModel(pathToRDF, sparqlEndpoint, sparqlQueryLimit)
   }
 
-  private def loadExistingModel(pathToRDF: String, sparqlEndpoint: Option[String]): Model = synchronized {
+  private def loadExistingModel(pathToRDF: String, sparqlEndpoint: Option[String], sparqlQueryLimit: Option[String]): Model = synchronized {
     org.apache.jena.query.ARQ.init()
-    DataLoaderFactory.getDataLoader(pathToRDF, sparqlEndpoint).load
+    DataLoaderFactory.getDataLoader(pathToRDF, sparqlEndpoint, sparqlQueryLimit).load
   }
 
   private def applyMappingRules(pathToRDF: String, mappingRules: String, mappingLanguage: String,
                                 username: Option[String], password: Option[String],
-                                drivers: Option[String], sparqlEndpoint: Option[String]): Model = {
+                                drivers: Option[String], sparqlEndpoint: Option[String], sparqlQueryLimit: Option[String]): Model = {
     org.apache.jena.query.ARQ.init()
     if(!updateInProgress) {
       val turtle = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
@@ -62,7 +62,7 @@ trait ModelLoader extends MappingRulesRunner {
           throw exception
       }
     }
-    loadExistingModel(pathToRDF, sparqlEndpoint)
+    loadExistingModel(pathToRDF, sparqlEndpoint, sparqlQueryLimit)
   }
 
   def parseRDFData(data: String): Model = {
@@ -79,15 +79,16 @@ sealed trait DataLoader {
 }
 
 object DataLoaderFactory {
-  def getDataLoader(path: String, sparqlEndpoint: Option[String]): DataLoader = sparqlEndpoint match {
-    case Some(endpoint) => SparqlDataLoader(endpoint)
+  def getDataLoader(path: String, sparqlEndpoint: Option[String], sparqlQueryLimit: Option[String]): DataLoader = sparqlEndpoint match {
+    case Some(endpoint) => SparqlDataLoader(endpoint, sparqlQueryLimit)
     case None => FileDataLoader(path)
   }
 }
 
-case class SparqlDataLoader(path: String) extends DataLoader with ResourceLoader {
+case class SparqlDataLoader(path: String, sparqlQueryLimit: Option[String]) extends DataLoader with ResourceLoader {
   def load: Model = {
-    val sparql = loadFromResources("getAllData.sparql")
+    val limitedLoad = sparqlQueryLimit.map(" LIMIT " + _).getOrElse("")
+    val sparql = loadFromResources("getAllData.sparql") + limitedLoad
     val query = QueryFactory.create(sparql)
     val queryExecution = QueryExecutionFactory.sparqlService(path, query)
     val model = queryExecution.execConstruct()

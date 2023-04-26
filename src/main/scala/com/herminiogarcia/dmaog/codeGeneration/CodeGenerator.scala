@@ -1,7 +1,7 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
 import com.herminiogarcia.dmaog.common.Util.{convertToJavaDataType, getFinalPathToGenerate}
-import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication, Util, WriterFactory}
+import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, PrefixesResolver, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication, Util, WriterFactory}
 import com.herminiogarcia.shexml.MappingLauncher
 import org.apache.http.auth.AUTH
 import org.apache.jena.datatypes.RDFDatatype
@@ -12,7 +12,7 @@ import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.update.{UpdateExecutionFactory, UpdateFactory}
 
 import java.io.ByteArrayInputStream
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.*
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -79,11 +79,16 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       val resultSet = doSparqlQuery(loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType), model, sparqlEndpoint)
       val result = resultSet.next()
       val subjectResult = result.get("subject")
-      //if(subjectResult.isAnon) ""
-      //else {
+      if(subjectResult.isAnon) ""
+      else {
         val uri = subjectResult.asResource().getURI
-        getPrefixes(finalPath).find(p => uri.startsWith(p._2)).head._2
-      //}
+        Option(getPrefixes(finalPath).filter(p => uri.startsWith(p._2)).maxBy(_._2)).map(_._2).getOrElse({
+          val slash = uri.lastIndexOf("/")
+          val hash = uri.lastIndexOf("#")
+          val maxIndex = slash.max(hash)
+          uri.splitAt(maxIndex)._1 + (if(slash > hash) "/" else "#")
+        })
+      }
     }
 
   }
@@ -206,7 +211,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
         case (k, v) => k.replaceFirst(":", "") -> v
       }
     } else {
-      val model = loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
+      val model = loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint, sparqlQueryLimit)
       if (model.getNsPrefixMap.isEmpty) namespaces.toMap
       else model.getNsPrefixMap.asScala.toMap
     }
