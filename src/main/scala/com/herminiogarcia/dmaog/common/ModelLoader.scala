@@ -5,7 +5,7 @@ import org.apache.jena.rdf.model.{Model, ModelFactory}
 import org.apache.jena.riot.RDFDataMgr
 import org.apache.jena.sparql.resultset.RDFOutput
 import org.jline.utils.InputStreamReader
-
+import com.typesafe.scalalogging.Logger
 import scala.concurrent.ExecutionContext.Implicits.global
 import java.io.{ByteArrayInputStream, File, PrintWriter}
 import java.util.Date
@@ -15,6 +15,8 @@ trait ModelLoader extends MappingRulesRunner {
 
   @volatile var updateInProgress = false
   @volatile var fileAccessInProgress = false
+
+  private val logger = Logger[ModelLoader]
 
   protected def loadModel(pathToRDF: String, mappingRules: Option[String], mappingLanguage: Option[String],
                           reloadMinutes: Option[Long], username: Option[String], password: Option[String],
@@ -39,6 +41,7 @@ trait ModelLoader extends MappingRulesRunner {
 
   private def loadExistingModel(pathToRDF: String, sparqlEndpoint: Option[String], sparqlQueryLimit: Option[String]): Model = synchronized {
     org.apache.jena.query.ARQ.init()
+    logger.info("Loading existing model")
     DataLoaderFactory.getDataLoader(pathToRDF, sparqlEndpoint, sparqlQueryLimit).load
   }
 
@@ -46,6 +49,7 @@ trait ModelLoader extends MappingRulesRunner {
                                 username: Option[String], password: Option[String],
                                 drivers: Option[String], sparqlEndpoint: Option[String], sparqlQueryLimit: Option[String]): Model = {
     org.apache.jena.query.ARQ.init()
+    logger.info("Applying mapping rules")
     if(!updateInProgress) {
       val turtle = generateDataByMappingLanguage(mappingRules, mappingLanguage, username, password, drivers)
       updateInProgress = true
@@ -86,10 +90,15 @@ object DataLoaderFactory {
 }
 
 case class SparqlDataLoader(path: String, sparqlQueryLimit: Option[String]) extends DataLoader with ResourceLoader {
+  private val logger = Logger[SparqlDataLoader]
+  
   def load: Model = {
+    logger.info("Loading model from SPARQL endpoint")
     val limitedLoad = sparqlQueryLimit.map(" LIMIT " + _).getOrElse("")
     val sparql = loadFromResources("getAllData.sparql") + limitedLoad
     val query = QueryFactory.create(sparql)
+    logger.info("Executing SPARQL query")
+    logger.debug(sparql)
     val queryExecution = QueryExecutionFactory.sparqlService(path, query)
     val model = queryExecution.execConstruct()
     queryExecution.close()
@@ -98,7 +107,10 @@ case class SparqlDataLoader(path: String, sparqlQueryLimit: Option[String]) exte
 }
 
 case class FileDataLoader(path: String) extends DataLoader {
+  private val logger = Logger[FileDataLoader]
+  
   def load: Model = {
+    logger.info("Loading model from file")
     RDFDataMgr.loadModel(path)
   }
 }
