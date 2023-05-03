@@ -4,12 +4,73 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 @DoNotDiscover
-class MultiplePrefixesPerTypeGenerationGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassGenerator {
+class MultiplePrefixesPerTypeStaticGenerationTest extends AnyFunSuite with BeforeAndAfter with ClassGenerator {
 
-  override val rules = null
+  override val rules =
+    """
+      |PREFIX wd: <http://www.wikidata.org/entity/>
+      |PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+      |PREFIX : <http://example.com/>
+      |PREFIX ehri: <https://lod.ehri-project-test.eu/>
+      |PREFIX ehri_country: <https://lod.ehri-project-test.eu/countries/>
+      |#TODO instutions with mixed paths
+      |PREFIX ehri_institution: <https://lod.ehri-project-test.eu/institutions/>
+      |PREFIX ehri_units: <https://lod.ehri-project-test.eu/units/>
+      |PREFIX ehri_pers: <https://lod.ehri-project-test.eu/vocabularies/ehri-pers/>
+      |PREFIX ehri_pers_full_name: <https://lod.ehri-project-test.eu/vocabularies/ehri-pers/name/>
+      |PREFIX ehri_pers_other_form_name: <https://lod.ehri-project-test.eu/vocabularies/ehri-pers/other-name/>
+      |PREFIX ehri_pers_parallel_form_name: <https://lod.ehri-project-test.eu/vocabularies/ehri-pers/parallel-name/>
+      |PREFIX dbr: <http://dbpedia.org/resource/>
+      |PREFIX schema: <http://schema.org/>
+      |PREFIX xs: <http://www.w3.org/2001/XMLSchema#>
+      |PREFIX owl: <http://www.w3.org/2002/07/owl#>
+      |PREFIX rico: <https://www.ica.org/standards/RiC/ontology#>
+      |SOURCE people <dummy.json>
+      |ITERATOR people_iterator <jsonpath: $.data.AuthoritativeSet.authorities.items[*]> {
+      |	PUSHED_FIELD term_id <identifier>
+      |    FIELD other_form_term_id <[?(@.description.otherFormsOfName[0])].identifier>
+      |    FIELD parallel_name_term_id <[?(@.description.parallelFormsOfName[0])].identifier>
+      |    FIELD name <description.name>
+      |    FIELD lastName <description.lastName>
+      |    FIELD firstName <description.firstName>
+      |    FIELD languageCode <description.languageCode>
+      |    FIELD src <description.source>
+      |    FIELD datesOfExistence <description.datesOfExistence>
+      |    FIELD biographicalHistory <description.biographicalHistory>
+      |    FIELD otherFormsOfName <description.otherFormsOfName>
+      |    FIELD parallelFormsOfName <description.parallelFormsOfName>
+      |  	ITERATOR links <links[*]> {
+      |          FIELD fakefield <fakefield>
+      |          ITERATOR targets <targets[?(@.type=='DocumentaryUnit')]> {
+      |              FIELD unit_id <id>
+      |              POPPED_FIELD term_id <term_id>
+      |          }
+      |      }
+      |}
+      |EXPRESSION person <people.people_iterator>
+      |AUTOINCREMENT agent_name_id <"agentName" + 0 to 99999999>
+      |ehri:Link ehri_units:[person.links.targets.unit_id] {
+      |    rico:hasOrHadSubject ehri_pers:[person.links.targets.term_id] ;
+      |}
+      |ehri:Person ehri_pers:[person.term_id] {
+      |    a rico:Person ;
+      |    rdfs:label [person.name] @[person.languageCode] ;
+      |    rico:history [person.biographicalHistory] ;
+      |    rico:hasAgentName @ehri:AgentOtherFormName ;
+      |    rico:hasAgentName @ehri:AgentParallelFormName ;
+      |}
+      |ehri:AgentOtherFormName ehri_pers_other_form_name:[person.other_form_term_id] {
+      |	a rico:AgentName ;
+      |	rdfs:label [person.otherFormsOfName] ;
+      |}
+      |ehri:AgentParallelFormName ehri_pers_parallel_form_name:[person.parallel_name_term_id] {
+      |	a rico:AgentName ;
+      |	rdfs:label [person.parallelFormsOfName] ;
+      |}
+      |""".stripMargin
 
   before {
-    generateClasses(pathToData = Option("ehriPers.ttl"))
+    generateClasses(true)
   }
 
   test("Class 1 is correctly generated") {
@@ -20,15 +81,15 @@ class MultiplePrefixesPerTypeGenerationGenerationTest extends AnyFunSuite with B
     assert(content.contains("public final static String rdfType = \"https://www.ica.org/standards/RiC/ontology#AgentName\";"))
     assert(content.contains("public final static String subjectPrefix = \"https://lod.ehri-project-test.eu/vocabularies/ehri-pers/other-name/\";"))
 
-    assert(content.contains("private String rdfsLabel;"))
+    assert(content.contains("private List<String> rdfsLabel;"))
     assert(content.contains("private IRIValue id;"))
 
-    val setRdfsLabel = "public RicoAgentName1 setRdfsLabel\\(String rdfsLabel\\)[ \r\n]*[{][ \r\n]*this.rdfsLabel = rdfsLabel;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setRdfsLabel = "public RicoAgentName1 setRdfsLabel\\(List<String> rdfsLabel\\)[ \r\n]*[{][ \r\n]*this.rdfsLabel = rdfsLabel;[ \r\n]*return this;[ \r\n]*[}]".r
     val setId = "public RicoAgentName1 setId\\(IRIValue id\\)[ \r\n]*[{][ \r\n]*this.id = id;[ \r\n]*return this;[ \r\n]*[}]".r
     assert(setRdfsLabel.findFirstIn(content).isDefined)
     assert(setId.findFirstIn(content).isDefined)
 
-    val getRdfsLabel = "public String getRdfsLabel\\(\\)[ \r\n]*[{][ \r\n]*return this.rdfsLabel;[ \r\n]*[}]".r
+    val getRdfsLabel = "public List<String> getRdfsLabel\\(\\)[ \r\n]*[{][ \r\n]*return this.rdfsLabel;[ \r\n]*[}]".r
     val getId = "public IRIValue getId\\(\\)[ \r\n]*[{][ \r\n]*return this.id;[ \r\n]*[}]".r
 
     assert(getRdfsLabel.findFirstIn(content).isDefined)
@@ -43,15 +104,15 @@ class MultiplePrefixesPerTypeGenerationGenerationTest extends AnyFunSuite with B
     assert(content.contains("public final static String rdfType = \"https://www.ica.org/standards/RiC/ontology#AgentName\";"))
     assert(content.contains("public final static String subjectPrefix = \"https://lod.ehri-project-test.eu/vocabularies/ehri-pers/parallel-name/\";"))
 
-    assert(content.contains("private String rdfsLabel;"))
+    assert(content.contains("private List<String> rdfsLabel;"))
     assert(content.contains("private IRIValue id;"))
 
-    val setRdfsLabel = "public RicoAgentName2 setRdfsLabel\\(String rdfsLabel\\)[ \r\n]*[{][ \r\n]*this.rdfsLabel = rdfsLabel;[ \r\n]*return this;[ \r\n]*[}]".r
+    val setRdfsLabel = "public RicoAgentName2 setRdfsLabel\\(List<String> rdfsLabel\\)[ \r\n]*[{][ \r\n]*this.rdfsLabel = rdfsLabel;[ \r\n]*return this;[ \r\n]*[}]".r
     val setId = "public RicoAgentName2 setId\\(IRIValue id\\)[ \r\n]*[{][ \r\n]*this.id = id;[ \r\n]*return this;[ \r\n]*[}]".r
     assert(setRdfsLabel.findFirstIn(content).isDefined)
     assert(setId.findFirstIn(content).isDefined)
 
-    val getRdfsLabel = "public String getRdfsLabel\\(\\)[ \r\n]*[{][ \r\n]*return this.rdfsLabel;[ \r\n]*[}]".r
+    val getRdfsLabel = "public List<String> getRdfsLabel\\(\\)[ \r\n]*[{][ \r\n]*return this.rdfsLabel;[ \r\n]*[}]".r
     val getId = "public IRIValue getId\\(\\)[ \r\n]*[{][ \r\n]*return this.id;[ \r\n]*[}]".r
 
     assert(getRdfsLabel.findFirstIn(content).isDefined)

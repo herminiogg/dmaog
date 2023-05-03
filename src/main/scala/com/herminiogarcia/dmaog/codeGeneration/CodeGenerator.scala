@@ -79,7 +79,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
 
   private def getSubjectByType(theType: String, finalPath: String): List[String] = {
     if(staticExploitation) {
-      List(createMappingRulesAnalyser.getSubjectPrefix(theType)) //TODO: change to analyse all the possible ocurrences too
+      createMappingRulesAnalyser.getSubjectPrefix(theType) //TODO: change to analyse all the possible ocurrences too
     } else {
       def model = () => loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
       val resultSet = doSparqlQuery(loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType), model, sparqlEndpoint)
