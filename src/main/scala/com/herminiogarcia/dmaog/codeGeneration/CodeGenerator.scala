@@ -77,24 +77,24 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
     types.toList
   }
 
-  private def getSubjectByType(theType: String, finalPath: String): String = {
+  private def getSubjectByType(theType: String, finalPath: String): List[String] = {
     if(staticExploitation) {
-      createMappingRulesAnalyser.getSubjectPrefix(theType)
+      List(createMappingRulesAnalyser.getSubjectPrefix(theType)) //TODO: change to analyse all the possible ocurrences too
     } else {
       def model = () => loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
       val resultSet = doSparqlQuery(loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType), model, sparqlEndpoint)
-      val result = resultSet.next()
-      val subjectResult = result.get("subject")
-      if(subjectResult.isAnon) ""
-      else {
-        val uri = subjectResult.asResource().getURI
-        Option(getPrefixes(finalPath).filter(p => uri.startsWith(p._2)).maxBy(_._2)).map(_._2).getOrElse({
-          val slash = uri.lastIndexOf("/")
-          val hash = uri.lastIndexOf("#")
-          val maxIndex = slash.max(hash)
-          uri.splitAt(maxIndex)._1 + (if(slash > hash) "/" else "#")
-        })
-      }
+      resultSet.asScala.toList.map(_.get("subject")).map(subjectResult => {
+        if(subjectResult.isAnon) ""
+        else {
+          val uri = subjectResult.asResource().getURI
+          Option(getPrefixes(finalPath).filter(p => uri.startsWith(p._2)).maxBy(_._2)).map(_._2).getOrElse({
+            val slash = uri.lastIndexOf("/")
+            val hash = uri.lastIndexOf("#")
+            val maxIndex = slash.max(hash)
+            uri.splitAt(maxIndex)._1 + (if(slash > hash) "/" else "#")
+          })
+        }
+      }).distinct
     }
 
   }
@@ -172,29 +172,34 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {
       logger.info(s"Generating classes for type: $t")
-      val capitalizedClassName = convertPrefixedNameFunction(t).capitalize
-      // DTO class
-      val classTemplate = loadFromResources("javaClassGeneric.java")
-      val attributes = attributesByType(t).filter(!_.predicate.equals(rdfsType)).:+(new DataTypedPredicate("id", "IRIValue"))
-      val attributesDeclaration = attributes.map(a => generateAttributesCode("attribute.java", a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
-      val getters = attributes.map(a => generateGetterSetterCode("getter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
-      val setters = attributes.map(a => generateGetterSetterCode("setter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
-      val classCode = classTemplate.replaceAll("\\$package", packageName)
-        .replaceAll("\\$className", capitalizedClassName)
-        .replaceAll("\\$rdfType", t)
-        .replaceAll("\\$subjectPrefix", getSubjectByType(t, finalPath))
-        .replaceAll("\\$attributes", attributesDeclaration)
-        .replaceAll("\\$getters", getters)
-        .replaceAll("\\$setters", setters)
-      Util.writeFile(pathToGenerate, capitalizedClassName + ".java", classCode)
-      logger.debug(s"Generated file ${capitalizedClassName + ".java"} with content: $classCode")
-      // Service class
-      val serviceTemplate = loadFromResources("javaServiceClassGeneric.java")
-      val serviceCode = serviceTemplate.replaceAll("\\$package", packageName)
-        .replaceAll("\\$className", capitalizedClassName + "Service")
-        .replaceAll("\\$type", capitalizedClassName)
-      Util.writeFile(pathToGenerate, capitalizedClassName + "Service.java", serviceCode)
-      logger.debug(s"Generated file ${capitalizedClassName + "Service.java"} with content: $serviceCode")
+      val subjectsByType = getSubjectByType(t, finalPath)
+      if(subjectsByType.size > 1) logger.info(s"Type $t uses more than one prefix. Generating different classes for each prefix.")
+      subjectsByType.foreach(st => {
+        val multiplePrefixesSuffix = if(subjectsByType.size > 1) subjectsByType.indexOf(st) + 1 else ""
+        val capitalizedClassName = convertPrefixedNameFunction(t).capitalize + multiplePrefixesSuffix
+        // DTO class
+        val classTemplate = loadFromResources("javaClassGeneric.java")
+        val attributes = attributesByType(t).filter(!_.predicate.equals(rdfsType)).:+(new DataTypedPredicate("id", "IRIValue"))
+        val attributesDeclaration = attributes.map(a => generateAttributesCode("attribute.java", a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+        val getters = attributes.map(a => generateGetterSetterCode("getter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+        val setters = attributes.map(a => generateGetterSetterCode("setter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+        val classCode = classTemplate.replaceAll("\\$package", packageName)
+          .replaceAll("\\$className", capitalizedClassName)
+          .replaceAll("\\$rdfType", t)
+          .replaceAll("\\$subjectPrefix", st)
+          .replaceAll("\\$attributes", attributesDeclaration)
+          .replaceAll("\\$getters", getters)
+          .replaceAll("\\$setters", setters)
+        Util.writeFile(pathToGenerate, capitalizedClassName + ".java", classCode)
+        logger.debug(s"Generated file ${capitalizedClassName + ".java"} with content: $classCode")
+        // Service class
+        val serviceTemplate = loadFromResources("javaServiceClassGeneric.java")
+        val serviceCode = serviceTemplate.replaceAll("\\$package", packageName)
+          .replaceAll("\\$className", capitalizedClassName + "Service")
+          .replaceAll("\\$type", capitalizedClassName)
+        Util.writeFile(pathToGenerate, capitalizedClassName + "Service.java", serviceCode)
+        logger.debug(s"Generated file ${capitalizedClassName + "Service.java"} with content: $serviceCode")
+      })
     })
     val pathToDataFile = if(sparqlEndpoint.isEmpty) finalPath else ""
     val prefixesInMap = namespaces.map { case (k, v) => "put(\"" + k + "\",\"" + v + "\");" }.mkString("\n\t\t")
