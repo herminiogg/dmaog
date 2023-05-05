@@ -33,7 +33,7 @@ Usage: dmaog [-hV] [--static] [-d=<datafile>] [-dr=<drivers>]
              [-m=<mappingRules>] [-ml=<mappingLanguage>] -o=<outputPath>
              -p=<packageName> [-ps=<password>] [-se=<sparqlEndpoint>]
              [-sep=<sparqlEndpointPassword>] [-seu=<sparqlEndpointUsername>]
-             [-u=<username>]
+             [-sl=<sparqlQueryLimit>] [-u=<username>]
 Generate data access objects and services from your mapping rules.
   -d, --datafile=<datafile>
                   Path where the datafile is located if no mapping rules are
@@ -57,13 +57,15 @@ Generate data access objects and services from your mapping rules.
                   Password for the SPARQL endpoint
       -seu, --sparqlEndpointUsername=<sparqlEndpointUsername>
                   Username for the SPARQL endpoint
+      -sl, --sparqlQueryLimit=<sparqlQueryLimit>
+                  Limit the amount of requested results by adding a LIMIT x
+                    statement to the queries. This could limit performance
+                    issues when dealing with big graphs
+
       --static    Exploit mapping rules without executing them
   -u, --username=<username>
                   Username in case of database connection
   -V, --version   Print version information and exit.
-Disconnected from the target VM, address: '127.0.0.1:58786', transport: 'socket'
-
-Process finished with exit code 2
 
 ```
 
