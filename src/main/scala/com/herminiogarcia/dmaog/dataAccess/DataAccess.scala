@@ -7,7 +7,7 @@ import org.apache.jena.query.{Dataset, DatasetFactory, QueryExecutionFactory, Qu
 import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
 import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
 import org.apache.jena.update.{Update, UpdateExecutionFactory, UpdateFactory, UpdateProcessor, UpdateRequest}
-
+import com.typesafe.scalalogging.Logger
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
@@ -31,6 +31,8 @@ class DataAccess(fileNameForGeneratedContent: String,
 
   initAuthenticationContext(sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword)
 
+  private val logger = Logger[DataAccess]
+
   val sparqlEndpointOption = if(sparqlEndpoint == null || sparqlEndpoint.isEmpty) Option.empty else Option(sparqlEndpoint)
 
   private val nsPrefixes: Map[String, String] = {
@@ -39,27 +41,33 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   def getAll[T](theClass: Class[T]): util.List[T] = {
+    logger.info(s"Executing getAll for class ${theClass.getName}")
     getRDFType(theClass).map(t => {
       val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", t)
       def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
       def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
       val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+      logger.info(s"Loaded ${groupedBySubjectResults.size} objects")
       populateObjects(groupedBySubjectResults, theClass).asJava
     }).getOrElse(new util.ArrayList[T]())
   }
 
 
   def getAll[T](theClass: Class[T], rdfFormat: String): String = {
+    logger.info(s"Executing getAll for class ${theClass.getName} in RDF format $rdfFormat")
     getRDFType(theClass).map(t => {
       val sparql = loadFromResources("getAll.sparql").replaceFirst("\\$type", t)
       def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
       def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
       val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
-      generateRDF(groupedBySubjectResults, rdfFormat)
+      val result = generateRDF(groupedBySubjectResults, rdfFormat)
+      logger.debug(s"Result: $result")
+      result
     }).getOrElse("")
   }
 
   def getAll[T](theClass: Class[T], limit: java.lang.Long, offset: java.lang.Long): util.List[T] = {
+    logger.info(s"Executing getAll for class ${theClass.getName} with limit $limit and offset $offset")
     getRDFType(theClass).map(t => {
       val sparql = loadFromResources("getAllSubjects.sparql")
         .replaceFirst("\\$type", t)
@@ -68,6 +76,7 @@ class DataAccess(fileNameForGeneratedContent: String,
       def getSubject: QuerySolution => String = r => r.getResource("subject").getURI
       def getPredicate: QuerySolution => String = r => "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
       val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+      logger.info(s"Loaded ${groupedBySubjectResults.size} objects")
       groupedBySubjectResults.keys
         .map(k => getById(theClass, convertPrefixedNameToValue(nsPrefixes)(k)))
         .filter(_.isPresent).map(_.get()).toList.asJava
@@ -75,11 +84,14 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   def count[T](theClass: Class[T]): java.lang.Long = {
+    logger.info(s"Executing count for class ${theClass.getName}")
     getRDFType(theClass).map(t => {
       val sparql = loadFromResources("countAll.sparql")
         .replaceFirst("\\$type", t)
       val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpointOption, () => getModel).execute()
-      new java.lang.Long(resultSet.next().getLiteral("count").getLong)
+      val result = new java.lang.Long(resultSet.next().getLiteral("count").getLong)
+      logger.info(s"Result: $result")
+      result
     }).getOrElse(new java.lang.Long(0))
   }
 
@@ -113,6 +125,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   def getById[T](theClass: Class[T], id: String): Optional[T] = {
+    logger.info(s"Executing getById for class ${theClass.getName} with id $id")
     val rdfType = getRDFType(theClass)
     rdfType match {
       case Some(theType) => getSubjectPrefix(theClass) match {
@@ -124,6 +137,7 @@ class DataAccess(fileNameForGeneratedContent: String,
           def getSubject: QuerySolution => String = _ => fullSubjectIRI
           def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
           val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
+          logger.info(s"Loaded ${groupedBySubjectResults.size} objects")
           populateObjects(groupedBySubjectResults, theClass).headOption match {
             case Some(value) => Optional.of(value)
             case None => Optional.empty()
@@ -136,6 +150,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   def getById[T](theClass: Class[T], id: String, rdfFormat: String): String = {
+    logger.info(s"Executing getById for class ${theClass.getName} with id $id and RDF format $rdfFormat")
     val rdfType = getRDFType(theClass)
     rdfType match {
       case Some(theType) => getSubjectPrefix(theClass) match {
@@ -147,7 +162,9 @@ class DataAccess(fileNameForGeneratedContent: String,
           def getSubject: QuerySolution => String = _ => fullSubjectIRI
           def getPredicate: QuerySolution => String = r => r.getResource("predicate").getURI
           val groupedBySubjectResults = getGroupedStatements(sparql, getSubject, getPredicate)
-          generateRDF(groupedBySubjectResults, rdfFormat)
+          val result = generateRDF(groupedBySubjectResults, rdfFormat)
+          logger.debug(s"Result: $result")
+          result
         }
         case None => throw new Exception ("The class " + theType + " has not a subjectPrefix field defined. Unable to construct the query without this information.")
       }
@@ -156,12 +173,15 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   def getByField[T](theClass: Class[T], fieldName: String, value: String): util.List[T] = {
+    logger.info(s"Executing getByField for class ${theClass.getName} with field name $fieldName and value $value")
     val rdfType = getRDFType(theClass)
     rdfType match {
       case Some(theType) =>
         getFullIRIForFieldName(theClass, fieldName) match {
           case Some(fullPredicateIRI) =>
-            doGetByField(theType, fullPredicateIRI, value).map(getById(theClass, _)).filter(_.isPresent).map(_.get()).asJava
+            val result = doGetByField(theType, fullPredicateIRI, value).map(getById(theClass, _)).filter(_.isPresent).map(_.get()).asJava
+            logger.info(s"Loaded ${result.size()} objects")
+            result
           case None => throw new Exception("Field " + fieldName + " not found in type " + theClass)
         }
       case None => new util.ArrayList[T]()
@@ -169,11 +189,13 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   private def doGetByField[T](theType: String, fullPredicateIRI: String, value: String): List[String] = {
+    logger.info("Executing SPARQL query")
     val model = getModel
     val sparql = loadFromResources("getSubjectsByField.sparql")
       .replaceFirst("\\$type", theType)
       .replaceFirst("\\$fieldIRI", fullPredicateIRI)
       .replaceFirst("\\$value", getValueForSparqlQuery(value))
+    logger.debug(sparql)
     val resultSet = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpointOption, () => getModel).execute()
     val subjects = mutable.ListBuffer[String]()
     while(resultSet.hasNext) {
@@ -186,6 +208,7 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   def getByField[T](theClass: Class[T], fieldName: String, value: String, rdfFormat: String): String = {
+    logger.info(s"Executing getByField for class ${theClass.getName} with field name $fieldName and value $value in RDF format $rdfFormat")
     val rdfType = getRDFType(theClass)
     rdfType match {
       case Some(theType) =>
@@ -198,7 +221,9 @@ class DataAccess(fileNameForGeneratedContent: String,
             val outputStream = new ByteArrayOutputStream()
             val lang = RDFLanguages.nameToLang(rdfFormat)
             RDFDataMgr.write(outputStream, model, lang)
-            outputStream.toString
+            val result = outputStream.toString
+            logger.debug(s"Result: $result")
+            result
           case None => throw new Exception("Field " + fieldName + " not found in type " + theClass)
         }
       case None => ""
@@ -223,6 +248,8 @@ class DataAccess(fileNameForGeneratedContent: String,
   }
 
   private def updateExecution(sparql: String): Unit = {
+    logger.info("Executing SPARQL UPDATE query")
+    logger.debug(sparql)
     val dataset = DatasetFactory.create(getModel)
     val updateQuery = UpdateFactory.create(sparql)
     createUpdateProcessor(updateQuery, dataset).execute()
@@ -246,7 +273,7 @@ class DataAccess(fileNameForGeneratedContent: String,
         if(filename == "data.ttl") DataLocalFileWriter(path)
         else DataLocalFileWriter(path, filename)
       dataLocalFileWriter.write(outputStream.toString)
-      System.out.println("WARN: Updating on local disk is not meant for production environments and should be used only for testing purposes")
+      logger.warn("Updating on local disk is not meant for production environments and should be used only for testing purposes")
     }
   }
 
@@ -328,7 +355,7 @@ class DataAccess(fileNameForGeneratedContent: String,
 
   private def getModel = {
     loadModel(fileNameForGeneratedContent, Option(mappingRules), Option(mappingLanguage),
-      Option(reloadMinutes), Option(username), Option(password), Option(drivers), sparqlEndpointOption)
+      Option(reloadMinutes), Option(username), Option(password), Option(drivers), sparqlEndpointOption, Option("1"))
   }
 
   private def getFullIRIForFieldName[T](theClass: Class[T], fieldName: String) = {

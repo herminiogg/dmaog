@@ -21,7 +21,7 @@ sealed trait MappingRulesAnalyser {
   def getTypes(): Map[Shape, String]
   def getAttributesPerType(): Map[Shape, List[DataTypedPredicate]]
   def getPrefixes(): Map[String, String]
-  def getSubjectPrefix(theType: String): String
+  def getSubjectPrefix(theType: String): List[String]
 }
 
 case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesAnalyser {
@@ -84,10 +84,10 @@ case class ShExMLStaticRulesAnalyser(mappingRules: String) extends MappingRulesA
   }
 
   def getSubjectPrefix(theType: String) = {
-    getTypes().find(_._2 == theType).get._1.action match {
+    getTypes().filter(_._2 == theType).map(t => t._1.action match {
       case Action(shapePrefix, _, _) => getPrefixes().find(_._1 == shapePrefix).get._2
       case LiteralSubject(prefix, _) => getPrefixes().find(_._1 == prefix.name).get._2
-    }
+    }).toList
   }
 
   private def convertToURIType(literalObject: LiteralObject): Option[String] = {

@@ -16,7 +16,7 @@ object Main {
 
 }
 
-@Command(name = "dmaog", version = Array("v0.1.3"),
+@Command(name = "dmaog", version = Array("v0.1.4"),
   mixinStandardHelpOptions = true,
   description = Array("Generate data access objects and services from your mapping rules."))
 class Main extends Callable[Int] {
@@ -45,6 +45,9 @@ class Main extends Callable[Int] {
   @Option(names = Array("-sep", "--sparqlEndpointPassword"), description = Array("Password for the SPARQL endpoint"))
   private var sparqlEndpointPassword: String = null
 
+  @Option(names = Array("-sl", "--sparqlQueryLimit"), description = Array("Limit the amount of requested results by adding a LIMIT x statement to the queries. This could limit performance issues when dealing with big graphs"))
+  private var sparqlQueryLimit: String = null
+
   @Option(names = Array("-p", "--package"), required = true, description = Array("Package information for the generated files"))
   private var packageName: String = ""
 
@@ -64,7 +67,7 @@ class Main extends Callable[Int] {
       new CodeGenerator(fileContent, mappingLanguage, outputPath, packageName,
         scala.Option(username), scala.Option(password), scala.Option(drivers),
         scala.Option(sparqlEndpoint), scala.Option(sparqlEndpointUsername), 
-        scala.Option(sparqlEndpointPassword), scala.Option(datafile), staticMappingRulesExploitation).generate()
+        scala.Option(sparqlEndpointPassword), scala.Option(sparqlQueryLimit), scala.Option(datafile), staticMappingRulesExploitation).generate()
       1 // well finished
     } finally { fileHandler.foreach(_.close()) }
   }

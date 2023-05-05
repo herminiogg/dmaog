@@ -1,8 +1,9 @@
 package com.herminiogarcia.dmaog.codeGeneration
 
 import com.herminiogarcia.dmaog.common.Util.{convertToJavaDataType, getFinalPathToGenerate}
-import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication, Util, WriterFactory}
+import com.herminiogarcia.dmaog.common.{DataTypedPredicate, MappingRulesRunner, ModelLoader, PrefixedNameConverter, PrefixesResolver, QueryExecutor, QueryExecutorFactory, ResourceLoader, SPARQLAuthentication, Util, WriterFactory}
 import com.herminiogarcia.shexml.MappingLauncher
+import com.typesafe.scalalogging.Logger
 import org.apache.http.auth.AUTH
 import org.apache.jena.datatypes.RDFDatatype
 import org.apache.jena.datatypes.xsd.XSDDatatype
@@ -21,16 +22,18 @@ import scala.util.{Failure, Success, Try}
 class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathToGenerate: String, packageName: String,
                    username: Option[String], password: Option[String], drivers: Option[String],
                     sparqlEndpoint: Option[String], sparqlEndpointUsername: Option[String],
-                    sparqlEndpointPassword: Option[String], datafile: Option[String],
+                    sparqlEndpointPassword: Option[String], sparqlQueryLimit: Option[String], datafile: Option[String],
                     staticExploitation: Boolean = false) extends ResourceLoader
         with ModelLoader with PrefixedNameConverter with MappingRulesRunner with SPARQLAuthentication {
 
   val namespaces: mutable.Map[String, String] = mutable.HashMap[String, String]()
+  private val logger = Logger[CodeGenerator]
   
   initAuthenticationContext(sparqlEndpoint, sparqlEndpointUsername, sparqlEndpointPassword)
 
   def generate(): Unit = {
     if(staticExploitation && mappingRules.isDefined) {
+      logger.info("Generating code statically from mapping rules")
       val mappingRulesAnalyser = createMappingRulesAnalyser
       val types = mappingRulesAnalyser.getTypes()
       val attributesPerType = mappingRulesAnalyser.getAttributesPerType()
@@ -39,6 +42,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       }
       generateClasses(finalAttributesPerType, getFinalPathToGenerate(pathToGenerate))
     } else {
+      logger.info("Generating code dynamically from the existing data")
       val pathToRDF = generateData()
       def modelLoader = () => loadModel(pathToRDF, None, null, None, username, password, drivers, sparqlEndpoint)
       val types = getTypes(modelLoader, sparqlEndpoint)
@@ -50,6 +54,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
 
   private def generateData(): String = mappingRules match {
     case Some(rules) =>
+      logger.info("Generating data from the mapping rules")
       val rdfResult = generateDataByMappingLanguage(rules, mappingLanguage, username, password, drivers)
       val result = Await.result(rdfResult, Duration.Inf)
       val temporalModel = ModelFactory.createDefaultModel()
@@ -62,6 +67,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
 
 
   private def getTypes(model: () => Model, sparqlEndpoint: Option[String]): List[String] = {
+    logger.info("Getting types")
     val resultSet = doSparqlQuery(loadFromResources("getTypes.sparql"), model, sparqlEndpoint)
     val types = mutable.ListBuffer[String]()
     while(resultSet.hasNext) {
@@ -71,19 +77,24 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
     types.toList
   }
 
-  private def getSubjectByType(theType: String, finalPath: String): String = {
+  private def getSubjectByType(theType: String, finalPath: String): List[String] = {
     if(staticExploitation) {
-      createMappingRulesAnalyser.getSubjectPrefix(theType)
+      createMappingRulesAnalyser.getSubjectPrefix(theType) //TODO: change to analyse all the possible ocurrences too
     } else {
       def model = () => loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
       val resultSet = doSparqlQuery(loadFromResources("getSubjectsByType.sparql").replaceFirst("\\$type", theType), model, sparqlEndpoint)
-      val result = resultSet.next()
-      val subjectResult = result.get("subject")
-      //if(subjectResult.isAnon) ""
-      //else {
-        val uri = subjectResult.asResource().getURI
-        getPrefixes(finalPath).find(p => uri.startsWith(p._2)).head._2
-      //}
+      resultSet.asScala.toList.map(_.get("subject")).map(subjectResult => {
+        if(subjectResult.isAnon) ""
+        else {
+          val uri = subjectResult.asResource().getURI
+          Option(getPrefixes(finalPath).filter(p => uri.startsWith(p._2)).maxBy(_._2)).map(_._2).getOrElse({
+            val slash = uri.lastIndexOf("/")
+            val hash = uri.lastIndexOf("#")
+            val maxIndex = slash.max(hash)
+            uri.splitAt(maxIndex)._1 + (if(slash > hash) "/" else "#")
+          })
+        }
+      }).distinct
     }
 
   }
@@ -124,6 +135,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
             convertToJavaDataType(theObject.asLiteral().getDatatype) // TODO: loop the results to find the best type
           else "IRIValue"
         val dataTypeWithCardinality = if(objectCardinality > 1) "List<" + dataType + ">" else dataType
+        logger.debug(s"Detected attribute $predicate for type $t with data type and cardinality $dataTypeWithCardinality")
         attributes.append(new DataTypedPredicate(predicate, dataTypeWithCardinality))
       }
       t -> attributes.toList
@@ -131,8 +143,19 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
   }
 
   private def doSparqlQuery(sparql: String, model: () => Model, sparqlEndpoint: Option[String]): ResultSet = {
-    val queryExecution = QueryExecutorFactory.getQueryExecutor(sparql, sparqlEndpoint, model)
-    queryExecution.execute()
+    logger.info("Executing SPARQL query")
+    val finalSparqlQuery = sparql + sparqlQueryLimit.map(" LIMIT " + _).getOrElse("")
+    logger.debug(finalSparqlQuery)
+    val queryExecution = QueryExecutorFactory.getQueryExecutor(finalSparqlQuery, sparqlEndpoint, model)
+    val result = Try(queryExecution.execute())
+    result match {
+      case Failure(e) =>
+        logger.error(e.toString)
+        logger.info("Error while executing the SPARQL query. We are going to retry once more.")
+        Thread.sleep(60000) //wait for a minute and try the query again
+        queryExecution.execute()
+      case Success(s) => s
+    }
   }
 
   private def resourceToCapitalizedName(resource: Resource): String = {
@@ -142,31 +165,41 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
   }
 
   private def generateClasses(attributesByType: Map[String, List[DataTypedPredicate]], finalPath: String): Unit = {
+    logger.info(s"Generating classes in $finalPath")
     val rdfsType = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
     val prefixes = getPrefixes(finalPath)
+    logger.debug(s"Loaded prefixes $prefixes")
     val convertPrefixedNameFunction = convertPrefixedName(prefixes)_
     attributesByType.keys.foreach(t => {
-      val capitalizedClassName = convertPrefixedNameFunction(t).capitalize
-      // DTO class
-      val classTemplate = loadFromResources("javaClassGeneric.java")
-      val attributes = attributesByType(t).filter(!_.predicate.equals(rdfsType)).:+(new DataTypedPredicate("id", "IRIValue"))
-      val attributesDeclaration = attributes.map(a => generateAttributesCode("attribute.java", a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
-      val getters = attributes.map(a => generateGetterSetterCode("getter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
-      val setters = attributes.map(a => generateGetterSetterCode("setter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
-      val classCode = classTemplate.replaceAll("\\$package", packageName)
-        .replaceAll("\\$className", capitalizedClassName)
-        .replaceAll("\\$rdfType", t)
-        .replaceAll("\\$subjectPrefix", getSubjectByType(t, finalPath))
-        .replaceAll("\\$attributes", attributesDeclaration)
-        .replaceAll("\\$getters", getters)
-        .replaceAll("\\$setters", setters)
-      Util.writeFile(pathToGenerate, capitalizedClassName + ".java", classCode)
-      // Service class
-      val serviceTemplate = loadFromResources("javaServiceClassGeneric.java")
-      val serviceCode = serviceTemplate.replaceAll("\\$package", packageName)
-        .replaceAll("\\$className", capitalizedClassName + "Service")
-        .replaceAll("\\$type", capitalizedClassName)
-      Util.writeFile(pathToGenerate, capitalizedClassName + "Service.java", serviceCode)
+      logger.info(s"Generating classes for type: $t")
+      val subjectsByType = getSubjectByType(t, finalPath)
+      if(subjectsByType.size > 1) logger.info(s"Type $t uses more than one prefix. Generating different classes for each prefix.")
+      subjectsByType.foreach(st => {
+        val multiplePrefixesSuffix = if(subjectsByType.size > 1) subjectsByType.indexOf(st) + 1 else ""
+        val capitalizedClassName = convertPrefixedNameFunction(t).capitalize + multiplePrefixesSuffix
+        // DTO class
+        val classTemplate = loadFromResources("javaClassGeneric.java")
+        val attributes = attributesByType(t).filter(!_.predicate.equals(rdfsType)).:+(new DataTypedPredicate("id", "IRIValue"))
+        val attributesDeclaration = attributes.map(a => generateAttributesCode("attribute.java", a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+        val getters = attributes.map(a => generateGetterSetterCode("getter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+        val setters = attributes.map(a => generateGetterSetterCode("setter.java", capitalizedClassName, a.predicate, a.dataType, convertPrefixedNameFunction)).mkString("\n    ")
+        val classCode = classTemplate.replaceAll("\\$package", packageName)
+          .replaceAll("\\$className", capitalizedClassName)
+          .replaceAll("\\$rdfType", t)
+          .replaceAll("\\$subjectPrefix", st)
+          .replaceAll("\\$attributes", attributesDeclaration)
+          .replaceAll("\\$getters", getters)
+          .replaceAll("\\$setters", setters)
+        Util.writeFile(pathToGenerate, capitalizedClassName + ".java", classCode)
+        logger.debug(s"Generated file ${capitalizedClassName + ".java"} with content: $classCode")
+        // Service class
+        val serviceTemplate = loadFromResources("javaServiceClassGeneric.java")
+        val serviceCode = serviceTemplate.replaceAll("\\$package", packageName)
+          .replaceAll("\\$className", capitalizedClassName + "Service")
+          .replaceAll("\\$type", capitalizedClassName)
+        Util.writeFile(pathToGenerate, capitalizedClassName + "Service.java", serviceCode)
+        logger.debug(s"Generated file ${capitalizedClassName + "Service.java"} with content: $serviceCode")
+      })
     })
     val pathToDataFile = if(sparqlEndpoint.isEmpty) finalPath else ""
     val prefixesInMap = namespaces.map { case (k, v) => "put(\"" + k + "\",\"" + v + "\");" }.mkString("\n\t\t")
@@ -177,6 +210,7 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
       .replaceFirst("\\$sparqlEndpoint", sparqlEndpoint.map('"' + _ + '"').getOrElse("null"))
       .replaceFirst("\\$prefixes", prefixesInMap)
     Util.writeFile(pathToGenerate, "DataAccessSingleton.java", singletonCode)
+    logger.debug(s"Generated file DataAccessSingleton.java with content: $singletonCode")
 
   }
 
@@ -194,12 +228,14 @@ class CodeGenerator(mappingRules: Option[String], mappingLanguage: String, pathT
 
   private def getPrefixes(finalPath: String): Map[String, String] = {
     if(staticExploitation) {
+      logger.info("Prefixes lodaded from the mapping rules")
       val mappingRulesAnalyser = createMappingRulesAnalyser
       mappingRulesAnalyser.getPrefixes().map {
         case (k, v) => k.replaceFirst(":", "") -> v
       }
     } else {
-      val model = loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint)
+      logger.info("Prefixes loaded from the data")
+      val model = loadModel(finalPath, None, None, None, username, password, drivers, sparqlEndpoint, sparqlQueryLimit)
       if (model.getNsPrefixMap.isEmpty) namespaces.toMap
       else model.getNsPrefixMap.asScala.toMap
     }

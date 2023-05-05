@@ -11,6 +11,8 @@ class Steps extends Sequential(
   new DataAccessSingletonTest,
   new FilmCodeGenerationFromURLDataTest,
   new DateTypesGenerationTest,
+  new MultiplePrefixesPerTypeDynamicGenerationTest,
+  new MultiplePrefixesPerTypeStaticGenerationTest,
 
   new FilmDataAccessTest,
   new FilmDataAccessRDFTest,
