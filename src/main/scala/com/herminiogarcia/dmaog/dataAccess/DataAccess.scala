@@ -8,6 +8,8 @@ import org.apache.jena.rdf.model.{Model, ModelFactory, ResourceFactory}
 import org.apache.jena.riot.{RDFDataMgr, RDFLanguages}
 import org.apache.jena.update.{Update, UpdateExecutionFactory, UpdateFactory, UpdateProcessor, UpdateRequest}
 import com.typesafe.scalalogging.Logger
+import org.apache.jena.datatypes.RDFDatatype
+
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.lang.reflect.{Method, ParameterizedType}
 import java.util
@@ -111,7 +113,7 @@ class DataAccess(fileNameForGeneratedContent: String,
         else if(theObject.isLiteral &&
           (theObject.asLiteral().getLanguage.nonEmpty || theObject.asLiteral().getDatatypeURI == "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"))
           MultilingualStringResult(theObject.asLiteral().getString, theObject.asLiteral().getLanguage)
-        else if(theObject.isLiteral) LiteralResult(theObject.asLiteral().getString)
+        else if(theObject.isLiteral) LiteralResult(theObject.asLiteral().getString, Option(theObject.asLiteral().getDatatype))
         else IRIResult(theObject.asResource().getURI)
       }
       groupedBySubjectResults.get(subject) match {
@@ -477,13 +479,26 @@ class DataAccess(fileNameForGeneratedContent: String,
     //generate new triple for each triple in the map
     groupedBySubjectResults.foreach({ case (subject, predicateObjects) => predicateObjects.foreach({
       case (predicate, theObject) =>
-        inputModel.getResource(subject).listProperties(ResourceFactory.createProperty(predicate)).asScala.filter(s => {
+        /**inputModel.getResource(subject).listProperties(ResourceFactory.createProperty(predicate)).asScala.filter(s => {
           if(s.getObject.isLiteral && s.getObject.asLiteral().getLanguage.nonEmpty)
             s.getObject.asLiteral().getString == theObject.value &&
               s.getObject.asLiteral().getLanguage == theObject.asInstanceOf[MultilingualStringResult].langtag
           else if(s.getObject.isLiteral) s.getObject.asLiteral().getString == theObject.value
           else s.getObject.asResource().getURI == theObject.value
-        }).foreach(modelToReturn.add)
+        }).foreach(modelToReturn.add)*/
+        val objectResource = theObject match {
+          case LiteralResult(value, typeURI) => typeURI match {
+            case Some(theType) => modelToReturn.createTypedLiteral(value, theType)
+            case None => modelToReturn.createLiteral(value)
+          }
+          case IRIResult(value) => modelToReturn.createResource(value)
+          case MultilingualStringResult(value, lang) => modelToReturn.createLiteral(value, lang)
+        }
+        modelToReturn.add(modelToReturn.createStatement(
+          modelToReturn.createResource(subject),
+          modelToReturn.createProperty(predicate),
+          objectResource
+        ))
     }) })
     //serialize in the appropriate format
     val outputStream = new ByteArrayOutputStream()
@@ -498,6 +513,6 @@ sealed trait ObjectResult {
   val value: String
 }
 
-case class LiteralResult(value: String) extends ObjectResult
+case class LiteralResult(value: String, typeURI: Option[RDFDatatype] = Option.empty) extends ObjectResult
 case class IRIResult(value: String) extends ObjectResult
 case class MultilingualStringResult(value: String, langtag: String) extends ObjectResult
