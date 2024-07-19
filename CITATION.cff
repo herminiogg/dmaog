@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: DMAOG
+type: software
+authors:
+  - given-names: Herminio
+    family-names: García-González
+    affiliation: Kazerne Dossin
+    orcid: 'https://orcid.org/0000-0001-5590-4857'
+identifiers:
+  - type: url
+    value: 'https://dmaog.herminiogarcia.com/'
+    description: Main webpage
+  - type: doi
+    value: 10.5281/zenodo.12782289
+    description: Zenodo's DOI
+  - type: swh
+    value: 'swh:1:rev:69a34da6a681bbeda6de60faa5b2fa2893c8ace0'
+    description: Version 0.1.5 release
+repository-code: 'https://github.com/herminiogg/dmaog'
+url: 'https://dmaog.herminiogarcia.com/'
+abstract: >-
+  DMAOG is a library that allows to use data mapping rules to automatically generate code to access the data generated
+  from these mapping rules. In this way a developer only has to write the mapping rules to generate a Knowledge Graph,
+  then DMAOG will apply the mapping rules and generate the data access code necessary to query them. Additionally,
+  DMAOG can take care of the data changes – and reapplying mapping rules – as a background task.
+license: MIT
