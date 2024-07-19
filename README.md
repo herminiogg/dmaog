@@ -1,11 +1,13 @@
 # Data Mapping Access Objects Generator (DMAOG)
 [![Main build](https://github.com/herminiogg/dmaog/actions/workflows/scala.yml/badge.svg?branch=main)](https://github.com/herminiogg/dmaog/actions/workflows/scala.yml?query=branch%3Amain)
 [![Maven Central](https://img.shields.io/maven-central/v/com.herminiogarcia/dmaog_3?color=blue)](https://central.sonatype.com/artifact/com.herminiogarcia/dmaog_3)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12782289.svg)](https://doi.org/10.5281/zenodo.12782289)
+[![SWH](https://archive.softwareheritage.org/badge/origin/https://github.com/herminiogg/dmaog/)](https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/herminiogg/dmaog)
 
 DMAOG is a library that allows to use data mapping rules to automatically generate code to access
 the data generated from these mapping rules. In this way a developer only has to write the mapping
 rules to generate a Knowledge Graph, then DMAOG will apply the mapping rules and generate the data access code 
-necessary to query them. Additionally, DMAOG can take care of the data changes—and reapplying mapping rules—as a background task.
+necessary to query them. Additionally, DMAOG can take care of the data changes – and reapplying mapping rules – as a background task.
 
 # How it works
 DMAOG is able to run mapping rules in ShExML and RML. After applying the mapping rules the data is explored through
