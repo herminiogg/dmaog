@@ -32,7 +32,7 @@ Inside DataAccessSingleton.java all the configuration parameters can be set up. 
 `new FilmService().getAll();` and the methods will return the results encapsulated in the generated DTO objects. To see all the methods supported by the services take a look to the "Supported methos in services" 
 section.
 
-# CLI
+## CLI
 ```
 Usage: dmaog [-hV] [--static] [-d=<datafile>] [-dr=<drivers>]
              [-m=<mappingRules>] [-ml=<mappingLanguage>] -o=<outputPath>
@@ -74,7 +74,7 @@ Generate data access objects and services from your mapping rules.
 
 ```
 
-# Supported features
+## Supported features
 * Generation of data against files and SPARQL endpoints
 * Using already existing data files and SPARQL endpoints without mapping rules
 * Update actions on files and SPARQL endpoints (authentication included)
@@ -82,7 +82,7 @@ Generate data access objects and services from your mapping rules.
 * Multilingual strings
 * Pagination of the results
 
-# Supported methods in services
+## Supported methods in services
 * getAll(): List[Type] -> Returns all the results for the type
 * getAll(Long limit, Long offset): List[Type] -> Returns all the results for the type within the given page
 * getAll(String rdfFormat): String -> Returns all the results in the requested format
@@ -98,7 +98,82 @@ value matches with the given value in the requested format.
 as create or update method.
 * delete(Type instance) -> Deletes the instance in the data store.
 
+## Requirements
+The minimal versions for this software to work are:
+- JDK 8 (or the Open JDK 8)
+- Scala 2.12.17
+- SBT 1.7.2
+
+## Webpage
+A live playground is also offered online (https://dmaog.herminiogarcia.com). However, due to hardware limitations it is not
+intended for intensive use.
+
+## Build
+The library uses sbt as the package manager and building tool, therefore to compile the project you can use the following command:
+```
+$ sbt compile
+```
+To run the project from within sbt you can use the command below, where `<options>` can be replaced by the arguments explained in the [CLI](#cli)
+```
+$ sbt "run <options>"
+```
+To generate an executable JAR file you can call the following command. Take into account that if you want to test the library before
+generating the artifact you need to set up the testing environment as explained in the [Testing](#testing) section and omit
+the `"set test in assembly := {}"` option from the command.
+```
+$ sbt "set test in assembly := {}" clean update assembly
+```
+## Testing
+The project contains a full suite of tests that checks that all the features included in the engine work as expected. These
+tests units are included under the src/test/scala folder. To run them you can use the command below. Notice that it is of utmost
+importance to test that the project pass the tests for all the cross-compiled versions used within the project
+(see the [Cross-compilation](#cross-compilation) section for more details.)
+```
+$ sbt test
+```
+The test environment uses some external resources that need to be set up before running them which mainly involves starting and configuring
+a triple store. This process is described on the 
+[Github workflow file](https://github.com/herminiogg/dmaog/blob/master/.github/workflows/scala.yml).
+
+## Cross-compilation
+The project is enabled to work with three different versions of Scala (i.e., 2.12.x, 2.13.x and 3.x) so it can be used across different
+Scala environments. Therefore, all the commands will work by default with the 3.x version but it is possible to run the same command
+for all the versions at the same time or just for one specific version. Below you can see how to do so with the test command.
+
+Testing against all the cross-compiled versions:
+```
+$ sbt "+ test"
+```
+
+Testing against a specific version where <version> is one of the configured versions in the build.sbt file:
+```
+$ sbt "++<version> test"
+```
+
+## Dependencies
+The following dependencies are used by this library:
+
+| Dependency                                   | License                                 |
+|----------------------------------------------|-----------------------------------------|
+| org.apache.jena / jena-base                  | Apache License 2.0                      |
+| org.apache.jena / jena-core                  | Apache License 2.0                      |
+| org.apache.jena / jena-arq                   | Apache License 2.0                      |
+| info.picocli / picocli                       | Apache License 2.0                      |
+| be.ugent.rml / rmlmapper                     | MIT License                             |
+| com.herminiogarcia / shexml                  | MIT License                             |
+| com.typesafe.scala-logging / scala-logging   | Eclipse Public License v1.0 or LGPL-2.1 |
+| ch.qos.logback / logback-classic             | Eclipse Public License v1.0 or LGPL-2.1 |
+
+For performing a more exhaustive licenses check, including subdependecies and testing ones the
+[sbt-license-report](https://github.com/sbt/sbt-license-report) plugin is included in the project, enabling the generation
+of a report with the command:
+```
+$ sbt dumpLicenseReport
+```
+The results are available, after the execution of this command, under the directory `target/license-reports`.
+
 # Future work
 * Handling Blank Nodes
 * Possibility to use Shapes for code generation
 * Static analysis of RML rules
+
